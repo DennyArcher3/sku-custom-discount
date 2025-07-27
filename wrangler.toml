@@ -1,0 +1,40 @@
+name = "sku-custom-discount"
+main = "server.ts"
+compatibility_date = "2025-01-27" # Latest date for all current features
+compatibility_flags = ["nodejs_compat"]
+
+# Serve static assets from the build directory
+assets = { directory = "./build/client" }
+
+[build]
+command = "npm run build:cf"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "8b252d829fc1454182e2c6814bdcae2e"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sku-discount-db"
+database_id = "0ce2dfcb-1c94-4ee8-b630-8349cc9a54b3"
+
+[vars]
+NODE_ENV = "production"
+SCOPES = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
+SHOPIFY_API_KEY = "3122acfb32ed2de15a381bde53864f1f"
+SHOPIFY_API_SECRET = "640cbc2a69ce6306bf4f25a78ff17c56"
+SHOPIFY_APP_URL = "https://sku-custom-discount-production.eromage3.workers.dev"
+SHOPIFY_DISCOUNT_FUNCTION_ID = "fe78075e-5113-4962-a155-4a63009f85c7"
+
+# Bindings for environment access
+[env.production]
+vars = { NODE_ENV = "production", SCOPES = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects", SHOPIFY_API_KEY = "3122acfb32ed2de15a381bde53864f1f", SHOPIFY_API_SECRET = "640cbc2a69ce6306bf4f25a78ff17c56", SHOPIFY_APP_URL = "https://sku-custom-discount-production.eromage3.workers.dev", SHOPIFY_DISCOUNT_FUNCTION_ID = "fe78075e-5113-4962-a155-4a63009f85c7" }
+
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "8b252d829fc1454182e2c6814bdcae2e"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "sku-discount-db"
+database_id = "0ce2dfcb-1c94-4ee8-b630-8349cc9a54b3"

@@ -1,0 +1,17 @@
+{
+  "name": "SKU Discount Settings",
+  "description": "Configure SKU-based discounts for specific products",
+  "title": "SKU-Based Product Discounts",
+  "loading": "Loading...",
+  "percentage": {
+    "Product": "Product discount",
+    "Order": "Order discount",
+    "Shipping": "Shipping discount"
+  },
+  "collections": {
+    "buttonLabel": "Choose collections",
+    "allProducts": "All products",
+    "collections": "Collections",
+    "appliesTo": "Applies to"
+  }
+}

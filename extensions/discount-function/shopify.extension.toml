@@ -1,0 +1,24 @@
+api_version = "2025-07"
+
+[[extensions]]
+name = "t:name"
+handle = "discount-function"
+type = "function"
+
+description = "t:description"
+
+  [extensions.configuration]
+  type = "merchant"
+
+  [[extensions.targeting]]
+  target = "cart.lines.discounts.generate.run"
+  input_query = "src/cart_lines_discounts_generate_run.graphql"
+  export = "cart_lines_discounts_generate_run"
+
+  [extensions.build]
+  command = "cargo build --target=wasm32-wasip1 --release"
+  path = "target/wasm32-wasip1/release/discount-function.wasm"
+  watch = [ "src/**/*.rs" ]
+
+  [extensions.ui]
+  handle = "discount-function-settings"

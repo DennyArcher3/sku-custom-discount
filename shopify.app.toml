@@ -1,0 +1,36 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "3122acfb32ed2de15a381bde53864f1f"
+name = "Sku Custom Discount"
+handle = "sku-custom-discount"
+application_url = "https://sku-custom-discount-production.eromage3.workers.dev"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = false
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2025-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "https://sku-custom-discount.eromage3.workers.dev/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "https://sku-custom-discount.eromage3.workers.dev/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+  uri = "https://sku-custom-discount.eromage3.workers.dev/webhooks"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
+
+[auth]
+redirect_urls = ["https://sku-custom-discount-production.eromage3.workers.dev/auth/callback", "https://sku-custom-discount-production.eromage3.workers.dev/auth/shopify/callback", "https://sku-custom-discount-production.eromage3.workers.dev/api/auth/callback"]
+
+[pos]
+embedded = false
