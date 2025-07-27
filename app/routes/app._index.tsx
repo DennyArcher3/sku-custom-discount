@@ -153,7 +153,7 @@ export default function Index() {
             </s-stack>
           </s-box>
           <s-box>
-            <s-button variant="primary" onClick={handleCreateDiscount} size="large">
+            <s-button variant="primary" onClick={handleCreateDiscount}>
               Create Your First Discount
             </s-button>
           </s-box>
