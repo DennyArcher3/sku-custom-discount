@@ -138,29 +138,29 @@ export default function Index() {
   ];
 
   return (
-    <s-page title="SKU Custom Discount">
+    <s-page>
       <s-section>
         <s-stack gap="large">
           {/* Hero Card */}
           <s-card>
-            <s-grid columns="1fr auto" gap="base" align="center">
+            <s-grid>
               <s-stack gap="small">
-                <s-heading level="1">SKU Custom Discount</s-heading>
-                <s-text tone="subdued">Apply targeted percentage discounts to specific products using SKU codes</s-text>
+                <s-heading>SKU Custom Discount</s-heading>
+                <s-text tone="neutral">Apply targeted percentage discounts to specific products using SKU codes</s-text>
               </s-stack>
-              <s-button variant="primary" size="large" onClick={handleCreateDiscount}>
+              <s-button variant="primary" onClick={handleCreateDiscount}>
                 Create Discount
               </s-button>
             </s-grid>
           </s-card>
 
           {/* Features Grid */}
-          <s-grid columns="repeat(auto-fit, minmax(250px, 1fr))" gap="base">
+          <s-grid>
             {features.map((feature, index) => (
               <s-card key={index}>
                 <s-stack gap="small">
-                  <s-heading level="3">{feature.title}</s-heading>
-                  <s-text tone="subdued">{feature.description}</s-text>
+                  <s-heading>{feature.title}</s-heading>
+                  <s-text tone="neutral">{feature.description}</s-text>
                 </s-stack>
               </s-card>
             ))}
@@ -169,10 +169,10 @@ export default function Index() {
           {/* How it Works */}
           <s-card>
             <s-stack gap="base">
-              <s-heading level="2">How It Works</s-heading>
+              <s-heading>How It Works</s-heading>
               <s-stack gap="small">
                 {steps.map((step, index) => (
-                  <s-inline-stack key={index} gap="small" align="start">
+                  <s-inline-stack key={index} gap="small">
                     <s-badge tone="info">{index + 1}</s-badge>
                     <s-text>{step}</s-text>
                   </s-inline-stack>
@@ -182,21 +182,21 @@ export default function Index() {
           </s-card>
 
           {/* Quick Actions */}
-          <s-grid columns="1fr 1fr" gap="base">
+          <s-grid>
             <s-card>
               <s-stack gap="small">
-                <s-heading level="3">Need Help?</s-heading>
-                <s-text tone="subdued">View our documentation for detailed guides and examples</s-text>
-                <s-button variant="plain" url="https://help.shopify.com/en/manual/discounts" external>
+                <s-heading>Need Help?</s-heading>
+                <s-text tone="neutral">View our documentation for detailed guides and examples</s-text>
+                <s-button variant="secondary" url="https://help.shopify.com/en/manual/discounts" external>
                   View Documentation
                 </s-button>
               </s-stack>
             </s-card>
             <s-card>
               <s-stack gap="small">
-                <s-heading level="3">Manage Discounts</s-heading>
-                <s-text tone="subdued">View and edit your existing SKU-based discounts</s-text>
-                <s-button variant="plain" url={`https://admin.shopify.com/store/${shopHandle}/discounts`} external>
+                <s-heading>Manage Discounts</s-heading>
+                <s-text tone="neutral">View and edit your existing SKU-based discounts</s-text>
+                <s-button variant="secondary" url={`https://admin.shopify.com/store/${shopHandle}/discounts`} external>
                   View All Discounts
                 </s-button>
               </s-stack>
