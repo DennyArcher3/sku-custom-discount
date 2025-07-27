@@ -139,70 +139,86 @@ export default function Index() {
 
   return (
     <s-page>
+      {/* Hero Section with Banner */}
+      <s-banner tone="info" heading="Create SKU-Based Discounts">
+        Target specific products by their SKU codes and apply percentage discounts automatically
+      </s-banner>
+      
       <s-section>
         <s-stack gap="large">
-          {/* Hero Card */}
-          <s-card>
-            <s-grid>
-              <s-stack gap="small">
-                <s-heading>SKU Custom Discount</s-heading>
-                <s-text tone="neutral">Apply targeted percentage discounts to specific products using SKU codes</s-text>
-              </s-stack>
-              <s-button variant="primary" onClick={handleCreateDiscount}>
-                Create Discount
-              </s-button>
-            </s-grid>
-          </s-card>
+          <s-box>
+            <s-stack gap="base">
+              <s-heading>Welcome to SKU Custom Discount</s-heading>
+              <s-text>Create powerful, targeted discounts that apply only to specific products in your store. Simply enter SKU codes and discount percentages to get started.</s-text>
+            </s-stack>
+          </s-box>
+          <s-box>
+            <s-button variant="primary" onClick={handleCreateDiscount} size="large">
+              Create Your First Discount
+            </s-button>
+          </s-box>
+        </s-stack>
+      </s-section>
 
-          {/* Features Grid */}
-          <s-grid>
-            {features.map((feature, index) => (
-              <s-card key={index}>
+      {/* Features Section */}
+      <s-section heading="Key Features">
+        <s-grid>
+          {features.map((feature, index) => (
+            <s-box key={index} padding="large" background="subdued" borderRadius="base" border="base">
+              <s-stack gap="base">
+                <s-box>
+                  <s-badge tone="success">{index + 1}</s-badge>
+                </s-box>
                 <s-stack gap="small">
                   <s-heading>{feature.title}</s-heading>
-                  <s-text tone="neutral">{feature.description}</s-text>
+                  <s-text>{feature.description}</s-text>
                 </s-stack>
-              </s-card>
-            ))}
-          </s-grid>
-
-          {/* How it Works */}
-          <s-card>
-            <s-stack gap="base">
-              <s-heading>How It Works</s-heading>
-              <s-stack gap="small">
-                {steps.map((step, index) => (
-                  <s-inline-stack key={index} gap="small">
-                    <s-badge tone="info">{index + 1}</s-badge>
-                    <s-text>{step}</s-text>
-                  </s-inline-stack>
-                ))}
               </s-stack>
-            </s-stack>
-          </s-card>
+            </s-box>
+          ))}
+        </s-grid>
+      </s-section>
 
-          {/* Quick Actions */}
-          <s-grid>
-            <s-card>
+      {/* How it Works Section */}
+      <s-section heading="How It Works">
+        <s-stack gap="base">
+          {steps.map((step, index) => (
+            <s-box key={index}>
               <s-stack gap="small">
-                <s-heading>Need Help?</s-heading>
-                <s-text tone="neutral">View our documentation for detailed guides and examples</s-text>
-                <s-button variant="secondary" url="https://help.shopify.com/en/manual/discounts" external>
+                <s-badge tone="info">{index + 1}</s-badge>
+                <s-text>{step}</s-text>
+              </s-stack>
+            </s-box>
+          ))}
+        </s-stack>
+      </s-section>
+
+      {/* Quick Actions Section */}
+      <s-section heading="Quick Actions">
+        <s-grid>
+          <s-section>
+            <s-stack gap="base">
+              <s-heading>Need Help?</s-heading>
+              <s-text>View our documentation for detailed guides and examples</s-text>
+              <s-box>
+                <s-button variant="secondary" href="https://help.shopify.com/en/manual/discounts" target="_blank">
                   View Documentation
                 </s-button>
-              </s-stack>
-            </s-card>
-            <s-card>
-              <s-stack gap="small">
-                <s-heading>Manage Discounts</s-heading>
-                <s-text tone="neutral">View and edit your existing SKU-based discounts</s-text>
-                <s-button variant="secondary" url={`https://admin.shopify.com/store/${shopHandle}/discounts`} external>
+              </s-box>
+            </s-stack>
+          </s-section>
+          <s-section>
+            <s-stack gap="base">
+              <s-heading>Manage Discounts</s-heading>
+              <s-text>View and edit your existing SKU-based discounts</s-text>
+              <s-box>
+                <s-button variant="secondary" href={`https://admin.shopify.com/store/${shopHandle}/discounts`} target="_blank">
                   View All Discounts
                 </s-button>
-              </s-stack>
-            </s-card>
-          </s-grid>
-        </s-stack>
+              </s-box>
+            </s-stack>
+          </s-section>
+        </s-grid>
       </s-section>
     </s-page>
   );

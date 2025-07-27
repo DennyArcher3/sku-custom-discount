@@ -39,26 +39,26 @@
   - ✅ `shop/redact` - Implemented
 
 ### App Functionality
-- [ ] **Core Features Working**
-  - Discount creation flow works smoothly
-  - SKU-based discounts apply correctly
-  - Configuration saves properly
-  - Error handling is user-friendly
+- [x] **Core Features Working** ✅
+  - ✅ Discount creation flow works smoothly
+  - ✅ SKU-based discounts apply correctly
+  - ✅ Configuration saves properly
+  - ✅ Error handling is user-friendly
 
 ## App Listing Requirements
 
 ### Basic Information
-- [x] **App Name**: "SKU Custom Discount" (18 characters) ✓
-- [ ] **Tagline**: _______________ (max 62 characters)
-- [ ] **App URL**: https://________________
+- [x] **App Name**: "SKU Custom Discount" (18 characters) ✅
+- [x] **Tagline**: "Surgical discount control for smart inventory management" (56 characters) ✅
+- [x] **App URL**: https://skucustomdiscount.com ✅
 
 ### Visual Assets
-- [ ] **App Icon**
-  - Size: 1200x1200 pixels
-  - Format: PNG or JPG
-  - No text or screenshots
-  - Bold, simple design
-  - High contrast
+- [x] **App Icon** ✅
+  - ✅ Size: 1200x1200 pixels
+  - ✅ Format: PNG with transparent background
+  - ✅ No text or screenshots
+  - ✅ Bold, simple design (barcode with % badge)
+  - ✅ High contrast
 
 - [ ] **Screenshots** (Desktop - Required)
   - Minimum: 3 screenshots
@@ -72,34 +72,40 @@
   - Show responsive design
 
 ### Content
-- [ ] **App Introduction** (100 characters)
-  - Clear value proposition
-  - Compelling and concise
+- [x] **App Introduction** (100 characters) ✅
+  - ✅ Clear value proposition
+  - ✅ Compelling and concise
+  - **Text**: "Create precise SKU-based discounts. Target specific products without affecting your entire catalog."
 
-- [ ] **Detailed Description**
-  - Explain what the app does
-  - List key features
-  - Describe benefits to merchants
-  - Include use cases
-  - No unverifiable claims ("the best", "the only")
+- [x] **Detailed Description** ✅
+  - ✅ Explains SKU-based discount functionality
+  - ✅ Lists key features (bulk import, visual picker)
+  - ✅ Clear merchant benefits (precision control, time savings)
+  - ✅ Specific use cases (clearance, B2B, seasonal)
+  - ✅ No unverifiable claims
 
-- [ ] **Key Features List** (3-5 bullet points)
-  - Feature 1: _______________
-  - Feature 2: _______________
-  - Feature 3: _______________
+- [x] **Key Features List** (3-5 bullet points) ✅
+  - ✅ Feature 1: Target exact SKUs with percentage discounts
+  - ✅ Feature 2: Bulk import from Excel in seconds
+  - ✅ Feature 3: Visual product picker with savings preview
+  - ✅ Feature 4: Native Shopify integration
+  - ✅ Feature 5: Perfect for clearance and B2B pricing
 
 ### Pricing
-- [ ] **Pricing Model Defined**
+- [x] **Pricing Model Defined** ✅
   - [ ] Free
   - [ ] One-time charge
-  - [ ] Recurring subscription
+  - [x] Recurring subscription ✅
   - [ ] Usage-based
-  - Clearly explain what's included
+  - ✅ Professional Plan: $19/month
+  - ✅ 7-day free trial included
+  - ✅ Unlimited SKU discounts
+  - ✅ All features included
 
 ### Support
-- [ ] **Support Email**: _______________
-- [ ] **Support Documentation**: _______________
-- [ ] **FAQ Section**: _______________
+- [x] **Support Email**: support@skucustomdiscount.com ✅
+- [x] **Support Documentation**: https://docs.skucustomdiscount.com ✅
+- [x] **FAQ Section**: https://help.skucustomdiscount.com/faq ✅
 
 ## Submission Requirements
 
@@ -144,12 +150,13 @@
 ## Legal & Compliance
 
 ### Documentation
-- [ ] **Privacy Policy**
-  - How data is collected
-  - How data is used
-  - How data is stored
-  - User rights
-  - Contact information
+- [x] **Privacy Policy** ✅
+  - ✅ URL: https://skucustomdiscount.com/privacy
+  - ✅ Data collection practices documented
+  - ✅ Data usage explained
+  - ✅ Storage and security detailed
+  - ✅ User rights (GDPR/CCPA)
+  - ✅ Contact information included
 
 - [ ] **Terms of Service**
   - Usage terms
