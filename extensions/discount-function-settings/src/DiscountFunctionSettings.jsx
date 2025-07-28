@@ -18,6 +18,8 @@ import {
   TextArea,
   Divider,
   Image,
+  Select,
+  Option,
 } from "@shopify/ui-extensions-react/admin";
 import { useState, useEffect } from "react";
 
@@ -107,6 +109,7 @@ function App() {
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [initialProducts, setInitialProducts] = useState({});
+  const [globalDiscountType, setGlobalDiscountType] = useState('percentage'); // Global discount type setting
 
   // Load existing configuration and store settings
   useEffect(() => {
@@ -126,7 +129,8 @@ function App() {
               const key = `saved_${identifier}`;
               convertedProducts[key] = {
                 ...details,
-                value: typeof details.value === 'number' ? details.value : 0
+                value: typeof details.value === 'number' ? details.value : 0,
+                discountType: details.discountType || 'percentage'
               };
             });
             setProducts(convertedProducts);
@@ -142,6 +146,7 @@ function App() {
                 title: sku,
                 sku: sku,
                 value: typeof value === 'number' ? value : 0,
+                discountType: 'percentage',
                 image: null,
                 price: null
               };
@@ -249,6 +254,7 @@ function App() {
                   sku: variant.sku || '',
                   price: variant.price,
                   value: 0,
+                  discountType: globalDiscountType,
                 };
               } else {
                 duplicateProducts.push(`${item.title} - ${variant.displayName || variant.title}`);
@@ -266,6 +272,7 @@ function App() {
                 sku: '', // Will be fetched
                 price: item.priceRange?.minVariantPrice?.amount || null,
                 value: 0,
+                discountType: globalDiscountType,
               };
             } else {
               duplicateProducts.push(item.title);
@@ -392,8 +399,10 @@ function App() {
           errors.push(`Line ${index + 1}: Missing SKU`);
         } else if (isNaN(value)) {
           errors.push(`Line ${index + 1}: Invalid discount value`);
-        } else if (value < 0 || value > 100) {
-          errors.push(`Line ${index + 1}: Discount must be between 0-100%`);
+        } else if (value < 0) {
+          errors.push(`Line ${index + 1}: Discount value cannot be negative`);
+        } else if (globalDiscountType === 'percentage' && value > 100) {
+          errors.push(`Line ${index + 1}: Percentage discount must be between 0-100%`);
         } else {
           skuToValueMap[sku] = value;
           validSkus.push(sku);
@@ -490,6 +499,7 @@ function App() {
                         sku: variant.sku,
                         price: variant.price,
                         value: skuToValueMap[matchingSku],
+                        discountType: globalDiscountType,
                       };
                     }
                     foundSkus.add(matchingSku);
@@ -625,7 +635,13 @@ function App() {
       Object.entries(products).forEach(([key, product]) => {
         // Use SKU if available, otherwise use title
         const identifier = product.sku || product.title || key;
-        formattedDiscounts[identifier] = parseFloat(product.value) || 0;
+        
+        // Format discount based on type for Rust function
+        formattedDiscounts[identifier] = {
+          discount_type: product.discountType || 'percentage',
+          value: parseFloat(product.value) || 0,
+          applies_to_each_item: product.discountType === 'fixedAmount' ? true : undefined
+        };
         
         // Save product details
         productDetails[identifier] = {
@@ -634,6 +650,7 @@ function App() {
           image: product.image,
           price: product.price,
           value: parseFloat(product.value) || 0,
+          discountType: product.discountType || 'percentage',
           id: product.id,
           variantId: product.variantId,
           productId: product.productId
@@ -773,6 +790,26 @@ function App() {
 
           <Divider />
 
+          {/* Discount Type Selector */}
+          <Section>
+            <BlockStack gap="base">
+              <Text variant="headingMd" as="h2">
+                Default Discount Type
+              </Text>
+              <Select
+                label="Discount type for new products"
+                value={globalDiscountType}
+                onChange={(value) => setGlobalDiscountType(value)}
+                helpText="Choose whether discounts are applied as a percentage off or a fixed amount off the price"
+              >
+                <Option value="percentage">Percentage off (%)</Option>
+                <Option value="fixedAmount">Fixed amount off ($)</Option>
+              </Select>
+            </BlockStack>
+          </Section>
+
+          <Divider />
+
           {/* Add Products Section */}
           <Section>
             <BlockStack gap="large">
@@ -818,21 +855,28 @@ function App() {
                 <Box padding="base" border="base" borderRadius="base">
                   <BlockStack gap="base">
                     <Text variant="bodySm">
-                      Copy from Excel: First column SKU, second column discount percentage
+                      Copy from Excel: First column SKU, second column discount value ({globalDiscountType === 'percentage' ? 'percentage' : 'dollar amount'})
                     </Text>
                     <TextArea
                       label=""
                       value={bulkImportText}
                       onChange={setBulkImportText}
                       minRows={6}
-                      placeholder={`SKU123	35
+                      placeholder={globalDiscountType === 'percentage' ? `SKU123	35
 SKU456	40
 SKU789	50
 ABC-001	25
 XYZ-002	15
 
 Note: Excel copy uses tab separator automatically. 
-You can also use comma: SKU123,35`}
+You can also use comma: SKU123,35` : `SKU123	10.00
+SKU456	15.50
+SKU789	5.00
+ABC-001	20.00
+XYZ-002	7.99
+
+Note: Excel copy uses tab separator automatically. 
+You can also use comma: SKU123,10.00`}
                     />
                     <InlineStack gap="base">
                       <Button 
@@ -933,16 +977,35 @@ You can also use comma: SKU123,35`}
                             )}
                           </Box>
 
+                          {/* Discount Type Selector - Fixed width */}
+                          <Box minInlineSize={110} maxInlineSize={110}>
+                            <Select
+                              label=""
+                              value={product.discountType || 'percentage'}
+                              onChange={(value) => {
+                                setProducts(prev => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], discountType: value }
+                                }));
+                              }}
+                            >
+                              <Option value="percentage">%</Option>
+                              <Option value="fixedAmount">$</Option>
+                            </Select>
+                          </Box>
+
                           {/* Discount Input - Fixed width */}
-                          <Box minInlineSize={100} maxInlineSize={75}>
+                          <Box minInlineSize={100} maxInlineSize={100}>
                             <NumberField
                               label=""
                               value={product.value?.toString() || "0"}
                               onChange={(value) => updateProductValue(key, value)}
-                              suffix="%" 
+                              prefix={product.discountType === 'fixedAmount' ? "$" : undefined}
+                              suffix={product.discountType === 'percentage' ? "%" : undefined}
                               min={0}
-                              max={100}
+                              max={product.discountType === 'percentage' ? 100 : undefined}
                               placeholder="0"
+                              step={product.discountType === 'fixedAmount' ? 0.01 : 1}
                             />
                           </Box>
 
@@ -950,7 +1013,16 @@ You can also use comma: SKU123,35`}
                           <Box minInlineSize={80} maxInlineSize={80} inlineAlignment="center" paddingInlineStart="base">
                             {product.price && product.value > 0 ? (
                               <Badge tone="critical">
-                                -${((parseFloat(product.price) * product.value) / 100).toFixed(0)}
+                                -${(() => {
+                                  const price = parseFloat(product.price);
+                                  const value = parseFloat(product.value);
+                                  if (product.discountType === 'percentage') {
+                                    return ((price * value) / 100).toFixed(2);
+                                  } else {
+                                    // Fixed amount - show the actual discount
+                                    return value.toFixed(2);
+                                  }
+                                })()}
                               </Badge>
                             ) : (
                               <Text variant="bodySm" tone="subdued" alignment="center">—</Text>
