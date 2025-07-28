@@ -794,12 +794,12 @@ function App() {
             <BlockStack gap="large">
               <Box>
                 <BlockStack gap="base">
-                  <InlineStack gap="base">
+                  <InlineStack gap="base" wrap={true}>
                     <Button 
                       onClick={handleProductPicker} 
                       variant="primary"
                     >
-                      <InlineStack gap="base" blockAlignment="center">
+                      <InlineStack gap="tight" blockAlignment="center" wrap={false}>
                         <Icon name="ProductsMajor" size="base" />
                         <Text>Select Products</Text>
                       </InlineStack>
@@ -809,7 +809,7 @@ function App() {
                       onClick={() => setShowBulkImport(!showBulkImport)} 
                       variant="secondary"
                     >
-                      <InlineStack gap="base" blockAlignment="center">
+                      <InlineStack gap="tight" blockAlignment="center" wrap={false}>
                         <Icon name="ImportMinor" size="base" />
                         <Text>Bulk Import</Text>
                       </InlineStack>
@@ -821,7 +821,7 @@ function App() {
                         variant="plain"
                         tone="critical"
                       >
-                        <InlineStack gap="base" blockAlignment="center">
+                        <InlineStack gap="tight" blockAlignment="center" wrap={false}>
                           <Icon name="DeleteMinor" size="base" />
                           <Text>Clear All</Text>
                         </InlineStack>
@@ -926,13 +926,12 @@ You can also use comma: SKU123,10.00`}
                         padding="base"
                         borderBlockEnd={index < productEntries.length - 1 ? "base" : undefined}
                       >
-                        <InlineStack gap="base" blockAlignment="center" wrap={false}>
-                          {/* Product Image - Fixed 36px */}
+                        <BlockStack gap="base">
+                          <InlineStack gap="base" blockAlignment="center" wrap={true}>
+                          {/* Product Image */}
                           <Box 
                             minInlineSize={36} 
-                            maxInlineSize={36}
                             minBlockSize={36}
-                            maxBlockSize={36}
                             background="subdued"
                             borderRadius="base"
                             inlineAlignment="center"
@@ -1040,7 +1039,8 @@ You can also use comma: SKU123,10.00`}
                           >
                             <Icon name="CancelMinor" />
                           </Button>
-                        </InlineStack>
+                          </InlineStack>
+                          </BlockStack>
                       </Box>
                     ))}
                   </BlockStack>
@@ -1050,9 +1050,14 @@ You can also use comma: SKU123,10.00`}
           </Section>
 
           <Box padding="base">
-            <Text tone="subdued" variant="bodySm">
-              Note: Discounts are applied based on SKU when available, otherwise product title.
-            </Text>
+            <BlockStack gap="tight">
+              <Text tone="subdued" variant="bodySm">
+                Note: Discounts are applied based on SKU when available, otherwise product title.
+              </Text>
+              <Text tone="subdued" variant="bodySm">
+                For best experience on mobile devices, use the Shopify mobile app.
+              </Text>
+            </BlockStack>
           </Box>
         </BlockStack>
       </Form>
