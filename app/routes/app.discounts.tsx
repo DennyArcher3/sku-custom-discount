@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/cloudflare";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, json } from "@remix-run/cloudflare";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import type { Env } from "../../server";
 import {
@@ -12,6 +12,7 @@ import {
   useIndexResourceState,
   EmptyState,
   IndexFilters,
+  useSetIndexFiltersMode,
   type IndexFiltersProps,
   type TabProps,
   Box,
@@ -21,10 +22,8 @@ import {
   PlusIcon,
   EditIcon,
   ExportIcon,
-  XIcon,
-  StatusActiveIcon,
 } from "@shopify/polaris-icons";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 
 interface Discount {
   id: string;
@@ -89,7 +88,11 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
     
     for (const discountId of discountIds) {
       try {
-        const mutation = `
+        // Determine if this is an automatic or code discount
+        const discountIdStr = discountId.toString();
+        const isAutomatic = discountIdStr.includes('DiscountAutomaticNode');
+        
+        const mutation = isAutomatic ? `
           mutation discountAutomaticDeactivate($id: ID!) {
             discountAutomaticDeactivate(id: $id) {
               automaticDiscountNode {
@@ -107,6 +110,25 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
               }
             }
           }
+        ` : `
+          mutation discountCodeDeactivate($id: ID!) {
+            discountCodeDeactivate(id: $id) {
+              codeDiscountNode {
+                codeDiscount {
+                  ... on DiscountCodeApp {
+                    discountId
+                    title
+                    status
+                  }
+                }
+              }
+              userErrors {
+                field
+                code
+                message
+              }
+            }
+          }
         `;
         
         const response = await admin.graphql(mutation, {
@@ -115,13 +137,22 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
         
         const data = await response.json();
         
-        if (data.data?.discountAutomaticDeactivate?.userErrors?.length > 0) {
+        const deactivateResult = isAutomatic 
+          ? data.data?.discountAutomaticDeactivate 
+          : data.data?.discountCodeDeactivate;
+          
+        if (deactivateResult?.userErrors?.length > 0) {
           errors.push({
             discountId,
-            errors: data.data.discountAutomaticDeactivate.userErrors
+            errors: deactivateResult.userErrors
           });
-        } else {
+        } else if (deactivateResult) {
           successes.push(discountId);
+        } else {
+          errors.push({
+            discountId,
+            errors: [{ message: 'Failed to deactivate discount' }]
+          });
         }
       } catch (error) {
         errors.push({
@@ -131,14 +162,101 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
       }
     }
     
-    return {
+    return json({
       success: errors.length === 0,
       deactivated: successes,
       errors
-    };
+    });
   }
   
-  return { success: false, error: 'Invalid action' };
+  if (action === 'activate' && discountIds.length > 0) {
+    const errors = [];
+    const successes = [];
+    
+    for (const discountId of discountIds) {
+      try {
+        // Determine if this is an automatic or code discount
+        const discountIdStr = discountId.toString();
+        const isAutomatic = discountIdStr.includes('DiscountAutomaticNode');
+        
+        const mutation = isAutomatic ? `
+          mutation discountAutomaticActivate($id: ID!) {
+            discountAutomaticActivate(id: $id) {
+              automaticDiscountNode {
+                automaticDiscount {
+                  ... on DiscountAutomaticApp {
+                    discountId
+                    title
+                    status
+                  }
+                }
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        ` : `
+          mutation discountCodeActivate($id: ID!) {
+            discountCodeActivate(id: $id) {
+              codeDiscountNode {
+                codeDiscount {
+                  ... on DiscountCodeApp {
+                    discountId
+                    title
+                    status
+                  }
+                }
+              }
+              userErrors {
+                field
+                code
+                message
+              }
+            }
+          }
+        `;
+        
+        const response = await admin.graphql(mutation, {
+          variables: { id: discountId }
+        });
+        
+        const data = await response.json();
+        
+        const activateResult = isAutomatic 
+          ? data.data?.discountAutomaticActivate 
+          : data.data?.discountCodeActivate;
+          
+        if (activateResult?.userErrors?.length > 0) {
+          errors.push({
+            discountId,
+            errors: activateResult.userErrors
+          });
+        } else if (activateResult) {
+          successes.push(discountId);
+        } else {
+          errors.push({
+            discountId,
+            errors: [{ message: 'Failed to activate discount' }]
+          });
+        }
+      } catch (error) {
+        errors.push({
+          discountId,
+          errors: [{ message: error instanceof Error ? error.message : 'Unknown error' }]
+        });
+      }
+    }
+    
+    return json({
+      success: errors.length === 0,
+      activated: successes,
+      errors
+    });
+  }
+  
+  return json({ success: false, error: 'Invalid action' });
 };
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
@@ -297,7 +415,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   } catch (error) {
     
     // Return error details in the response
-    return {
+    return json({
       discounts: [],
       shopHandle,
       functionId: functionId || env.SHOPIFY_DISCOUNT_FUNCTION_ID || '',
@@ -308,7 +426,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
         envFunctionId: env.SHOPIFY_DISCOUNT_FUNCTION_ID,
         error: error instanceof Error ? error.message : String(error)
       } as DebugInfo
-    };
+    });
   }
   
   // If no function ID from discounts, try to get it from functions query
@@ -344,7 +462,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
     }
   }
   
-  return {
+  return json({
     discounts,
     shopHandle,
     functionId: functionId || env.SHOPIFY_DISCOUNT_FUNCTION_ID || '',
@@ -354,20 +472,26 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
       functionIdUsed: functionId,
       envFunctionId: env.SHOPIFY_DISCOUNT_FUNCTION_ID
     } as DebugInfo
-  };
+  }, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate'
+    }
+  });
 };
 
 export default function Discounts() {
-  const { discounts, shopHandle, functionId, appInfo, debugInfo } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
+  const { discounts, shopHandle, functionId } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher({ key: 'discount-actions' });
   
   // State for filters
   const [queryValue, setQueryValue] = useState('');
   const [selectedTab, setSelectedTab] = useState(0);
+  const { mode, setMode } = useSetIndexFiltersMode();
   const [sortSelected, setSortSelected] = useState(['createdAt desc']);
   const [showBanner, setShowBanner] = useState(false);
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerTone, setBannerTone] = useState<'success' | 'critical'>('success');
+  const [processedFetcherData, setProcessedFetcherData] = useState<any>(null);
   
   // Filter discounts based on selected tab
   const getFilteredDiscounts = () => {
@@ -383,6 +507,31 @@ export default function Discounts() {
         break;
       case 2: // Scheduled tab
         filtered = filtered.filter(discount => discount.status === 'SCHEDULED');
+        break;
+      case 3: // Deactivated tab
+        filtered = filtered.filter(discount => {
+          if (discount.status === 'EXPIRED' && discount.endsAt) {
+            const endDate = new Date(discount.endsAt);
+            const now = new Date();
+            const timeDiff = now.getTime() - endDate.getTime();
+            return timeDiff < 60 * 60 * 1000; // Within last hour
+          }
+          return false;
+        });
+        break;
+      case 4: // Expired tab
+        filtered = filtered.filter(discount => {
+          if (discount.status === 'EXPIRED') {
+            if (discount.endsAt) {
+              const endDate = new Date(discount.endsAt);
+              const now = new Date();
+              const timeDiff = now.getTime() - endDate.getTime();
+              return timeDiff >= 60 * 60 * 1000; // More than an hour ago
+            }
+            return true;
+          }
+          return false;
+        });
         break;
       // case 0 is "All" - no filtering needed
     }
@@ -473,9 +622,30 @@ export default function Discounts() {
     return { date: dateFormatted, time: timeFormatted, relative };
   };
   
-  const getStatusBadge = (status: string) => {
-    const tone = status === 'ACTIVE' ? 'success' : 'info';
-    return <Badge tone={tone}>{status}</Badge>;
+  const getStatusBadge = (discount: Discount) => {
+    let displayStatus = discount.status;
+    let tone: 'success' | 'info' | 'warning' | 'critical' = 'info';
+    
+    // Check if it's expired vs deactivated
+    if (discount.status === 'EXPIRED' && discount.endsAt) {
+      const endDate = new Date(discount.endsAt);
+      const now = new Date();
+      const timeDiff = now.getTime() - endDate.getTime();
+      
+      // If expired within the last hour, it's likely deactivated
+      if (timeDiff < 60 * 60 * 1000) {
+        displayStatus = 'DEACTIVATED';
+        tone = 'warning';
+      } else {
+        tone = 'critical';
+      }
+    } else if (discount.status === 'ACTIVE') {
+      tone = 'success';
+    } else if (discount.status === 'SCHEDULED') {
+      tone = 'info';
+    }
+    
+    return <Badge tone={tone}>{displayStatus}</Badge>;
   };
   
   const handleFiltersQueryChange = useCallback(
@@ -489,15 +659,9 @@ export default function Discounts() {
     setQueryValue('');
   }, []);
   
-  // Handle cancel action - clear search and selections
-  const handleCancel = useCallback(() => {
-    setQueryValue('');
-    handleSelectionChange('Page' as any, false);
-  }, [handleSelectionChange]);
-  
   // Handle deactivate action
   const handleDeactivate = useCallback(() => {
-    if (selectedResources.length === 0) return;
+    if (selectedResources.length === 0 || fetcher.state !== 'idle') return;
     
     const formData = new FormData();
     formData.append('action', 'deactivate');
@@ -505,28 +669,85 @@ export default function Discounts() {
       formData.append('discountIds', id);
     });
     
-    fetcher.submit(formData, { method: 'post' });
+    fetcher.submit(formData, { method: 'post', action: '/app/discounts' });
+  }, [selectedResources, fetcher]);
+  
+  // Handle activate action
+  const handleActivate = useCallback(() => {
+    if (selectedResources.length === 0 || fetcher.state !== 'idle') return;
+    
+    const formData = new FormData();
+    formData.append('action', 'activate');
+    selectedResources.forEach(id => {
+      formData.append('discountIds', id);
+    });
+    
+    fetcher.submit(formData, { method: 'post', action: '/app/discounts' });
   }, [selectedResources, fetcher]);
   
   // Handle fetcher response
-  useMemo(() => {
-    if (fetcher.data) {
+  useEffect(() => {
+    if (fetcher.data && fetcher.state === 'idle' && fetcher.data !== processedFetcherData) {
       const data = fetcher.data as any;
+      setProcessedFetcherData(fetcher.data);
+      
       if (data.success) {
-        setBannerMessage(`Successfully deactivated ${data.deactivated.length} discount(s)`);
+        if (data.deactivated) {
+          setBannerMessage(`Successfully deactivated ${data.deactivated.length} discount(s)`);
+        } else if (data.activated) {
+          setBannerMessage(`Successfully activated ${data.activated.length} discount(s)`);
+        }
         setBannerTone('success');
         setShowBanner(true);
         handleSelectionChange('Page' as any, false);
-        // Hide banner after 5 seconds
-        setTimeout(() => setShowBanner(false), 5000);
+        
+        // Auto-hide after 5 seconds
+        const timer = setTimeout(() => {
+          setShowBanner(false);
+        }, 5000);
+        return () => clearTimeout(timer);
       } else if (data.errors) {
-        setBannerMessage(`Failed to deactivate some discounts. Please try again.`);
+        setBannerMessage(`Failed to process some discounts. Please try again.`);
         setBannerTone('critical');
         setShowBanner(true);
-        setTimeout(() => setShowBanner(false), 5000);
+        
+        // Auto-hide after 5 seconds
+        const timer = setTimeout(() => {
+          setShowBanner(false);
+        }, 5000);
+        return () => clearTimeout(timer);
       }
     }
-  }, [fetcher.data, handleSelectionChange]);
+  }, [fetcher.data, fetcher.state, handleSelectionChange, processedFetcherData]);
+  
+  // Helper function to categorize discounts
+  const categorizeDiscounts = () => {
+    let deactivated = 0;
+    let expired = 0;
+    
+    discounts.forEach(discount => {
+      if (discount.status === 'EXPIRED') {
+        if (discount.endsAt) {
+          const endDate = new Date(discount.endsAt);
+          const now = new Date();
+          const timeDiff = now.getTime() - endDate.getTime();
+          
+          // If expired within the last hour, it's likely deactivated
+          if (timeDiff < 60 * 60 * 1000) {
+            deactivated++;
+          } else {
+            expired++;
+          }
+        } else {
+          expired++;
+        }
+      }
+    });
+    
+    return { deactivated, expired };
+  };
+  
+  const { deactivated, expired } = categorizeDiscounts();
   
   const tabs: TabProps[] = [
     {
@@ -543,6 +764,16 @@ export default function Discounts() {
       content: `Scheduled (${discounts.filter(d => d.status === 'SCHEDULED').length})`,
       onAction: () => setSelectedTab(2),
       id: 'scheduled-discounts',
+    },
+    {
+      content: `Deactivated (${deactivated})`,
+      onAction: () => setSelectedTab(3),
+      id: 'deactivated-discounts',
+    },
+    {
+      content: `Expired (${expired})`,
+      onAction: () => setSelectedTab(4),
+      id: 'expired-discounts',
     },
   ];
   
@@ -709,7 +940,7 @@ export default function Discounts() {
               {discount.title}
             </Text>
           </IndexTable.Cell>
-          <IndexTable.Cell>{getStatusBadge(discount.status)}</IndexTable.Cell>
+          <IndexTable.Cell>{getStatusBadge(discount)}</IndexTable.Cell>
           <IndexTable.Cell>
             <InlineStack gap="200" align="start" blockAlign="center">
               <Text variant="bodyMd" as="span">
@@ -793,11 +1024,14 @@ export default function Discounts() {
       ]}
     >
       {showBanner && (
-        <Banner
-          title={bannerMessage}
-          tone={bannerTone}
-          onDismiss={() => setShowBanner(false)}
-        />
+        <div style={{ marginBottom: '16px' }}>
+          <Banner
+            tone={bannerTone}
+            onDismiss={() => setShowBanner(false)}
+          >
+            <p>{bannerMessage}</p>
+          </Banner>
+        </div>
       )}
       <Card>
         <IndexFilters
@@ -814,36 +1048,9 @@ export default function Discounts() {
           filters={[]}
           appliedFilters={[]}
           onClearAll={() => {}}
-          mode={'default' as any}
-          setMode={() => {}}
+          mode={mode}
+          setMode={setMode}
         />
-        {selectedResources.length > 0 && (
-          <div style={{ padding: '16px', borderBottom: '1px solid #e1e3e5' }}>
-            <InlineStack gap="400" align="space-between">
-              <Text variant="bodyMd" as="p">
-                {selectedResources.length} selected
-              </Text>
-              <InlineStack gap="200">
-                <Button
-                  variant="plain"
-                  icon={XIcon}
-                  onClick={handleCancel}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  tone="critical"
-                  icon={StatusActiveIcon}
-                  onClick={handleDeactivate}
-                  loading={fetcher.state === 'submitting'}
-                >
-                  Deactivate
-                </Button>
-              </InlineStack>
-            </InlineStack>
-          </div>
-        )}
         {sortedDiscounts.length === 0 ? (
           emptyStateMarkup
         ) : (
@@ -854,6 +1061,35 @@ export default function Discounts() {
               allResourcesSelected ? 'All' : selectedResources.length
             }
             onSelectionChange={handleSelectionChange}
+            promotedBulkActions={(() => {
+              if (selectedResources.length === 0) return [];
+              
+              // Check status of selected discounts
+              const selectedDiscounts = sortedDiscounts.filter(d => 
+                selectedResources.includes(d.discountId || d.id)
+              );
+              
+              const hasActiveDiscounts = selectedDiscounts.some(d => d.status === 'ACTIVE');
+              const hasInactiveDiscounts = selectedDiscounts.some(d => 
+                d.status === 'EXPIRED' || d.status === 'SCHEDULED'
+              );
+              
+              const actions = [];
+              
+              if (hasActiveDiscounts && !hasInactiveDiscounts) {
+                actions.push({
+                  content: 'Deactivate',
+                  onAction: handleDeactivate,
+                });
+              } else if (hasInactiveDiscounts && !hasActiveDiscounts) {
+                actions.push({
+                  content: 'Activate',
+                  onAction: handleActivate,
+                });
+              }
+              
+              return actions;
+            })()}
             headings={[
               { title: 'Title' },
               { title: 'Status' },
