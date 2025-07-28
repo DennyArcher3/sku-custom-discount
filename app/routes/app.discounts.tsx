@@ -1,5 +1,6 @@
 import { type LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
+import type { Env } from "../../server";
 import {
   Page,
   Card,
@@ -16,14 +17,13 @@ import {
   type TabProps,
   Tooltip,
   Box,
-  BlockStack,
 } from "@shopify/polaris";
 import { 
   PlusIcon,
   EditIcon,
   ExportIcon,
 } from "@shopify/polaris-icons";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 
 interface Discount {
   id: string;
@@ -180,31 +180,25 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   let appInfo: any = null;
   
   try {
-    console.log('Function ID from env:', functionId);
-    
-    // First, query app info
+    // Query app info
     try {
       const appResponse = await admin.graphql(appQuery);
       const appData = await appResponse.json() as GraphQLResponse;
-      console.log('App info:', JSON.stringify(appData, null, 2));
       
       if (appData?.data?.app) {
         appInfo = appData.data.app;
-        console.log('App info found:', appInfo.title);
       }
     } catch (appError) {
-      console.error('Error fetching app info:', appError);
+      // App info is optional, continue without it
     }
     
     // Now query ALL discounts
     const response = await admin.graphql(discountsQuery);
     const data = await response.json() as GraphQLResponse;
     
-    console.log('GraphQL response:', JSON.stringify(data, null, 2));
     
     // Check for errors
     if (data.errors) {
-      console.error('GraphQL errors:', data.errors);
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
     }
     
@@ -217,42 +211,21 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
         }))
         .filter((discount: any) => discount !== null);
       
-      console.log('Total discounts found:', allDiscounts.length);
       
-      // Log ALL discounts to see what's there
-      allDiscounts.forEach((discount: any) => {
-        console.log('Discount found:', {
-          nodeId: discount.nodeId,
-          title: discount.title,
-          type: discount.discountClass,
-          hasAppDiscountType: !!discount.appDiscountType,
-          functionId: discount.appDiscountType?.functionId,
-          appTitle: discount.appDiscountType?.app?.title,
-        });
-      });
       
-      // Now filter for our app's discounts
-      discounts = allDiscounts.filter((discount: any) => {
-        // Check if it's an app discount
-        if (!discount.appDiscountType) {
-          console.log(`Skipping ${discount.title} - not an app discount`);
-          return false;
-        }
-        
-        // Check if it matches our function ID
-        const matchesFunctionId = discount.appDiscountType.functionId === functionId;
-        console.log(`Discount ${discount.title}: functionId=${discount.appDiscountType.functionId}, matches=${matchesFunctionId}`);
-        
-        return matchesFunctionId;
-      }).map((discount: any) => ({
-        ...discount,
-        discountId: discount.discountId || discount.nodeId // Use discountId if available, otherwise use nodeId
-      }));
+      // Filter for our app's discounts
+      discounts = allDiscounts
+        .filter((discount: any) => 
+          discount.appDiscountType && 
+          discount.appDiscountType.functionId === functionId
+        )
+        .map((discount: any) => ({
+          ...discount,
+          discountId: discount.discountId || discount.nodeId
+        }));
       
-      console.log(`Filtered to ${discounts.length} app discounts with function ID: ${functionId}`);
     }
   } catch (error) {
-    console.error('Error fetching discounts:', error);
     
     // Return error details in the response
     return {
@@ -296,10 +269,9 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
       if (functionsData?.data?.shopifyFunctions?.edges?.length > 0) {
         const firstFunction = functionsData.data.shopifyFunctions.edges[0].node;
         functionId = firstFunction.id;
-        console.log('Using function ID from functions query:', functionId);
       }
     } catch (error) {
-      console.error('Error fetching function ID:', error);
+      // Function ID query is optional, continue without it
     }
   }
   
@@ -319,16 +291,6 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 export default function Discounts() {
   const { discounts, shopHandle, functionId, appInfo, debugInfo } = useLoaderData<typeof loader>();
   
-  // Client-side debugging
-  console.log('Client side - Function ID:', functionId);
-  console.log('Client side - Discounts received:', discounts.length);
-  console.log('Client side - Discounts:', discounts);
-  console.log('Client side - App Info:', appInfo);
-  console.log('Client side - Debug Info:', debugInfo);
-  
-  if (debugInfo && debugInfo.error) {
-    console.error('CLIENT SIDE ERROR:', debugInfo.error);
-  }
   
   // State for filters
   const [queryValue, setQueryValue] = useState('');
@@ -336,10 +298,24 @@ export default function Discounts() {
   const { mode, setMode } = useSetIndexFiltersMode();
   const [sortSelected, setSortSelected] = useState(['createdAt desc']);
   
+  // State for temporary values while in filtering mode
+  const [tempQueryValue, setTempQueryValue] = useState('');
+  const [tempSortSelected, setTempSortSelected] = useState(['createdAt desc']);
+  
+  // Sync temp values when entering filtering mode
+  useEffect(() => {
+    if (mode === 'filtering') {
+      setTempQueryValue(queryValue);
+      setTempSortSelected(sortSelected);
+    }
+  }, [mode, queryValue, sortSelected]);
+  
   // Filter discounts based on selected tab
   const getFilteredDiscounts = () => {
-    // Always start with a fresh copy of discounts
-    let filtered = [...discounts];
+    // Always start with a fresh copy of discounts, filtering out null/undefined values
+    let filtered = discounts.filter((discount): discount is Discount => 
+      discount !== null && discount !== undefined
+    );
     
     // Apply tab filter
     switch (selectedTab) {
@@ -355,11 +331,11 @@ export default function Discounts() {
     // Apply search query filter
     if (queryValue) {
       filtered = filtered.filter(discount => 
-        discount.title.toLowerCase().includes(queryValue.toLowerCase())
+        discount.title && discount.title.toLowerCase().includes(queryValue.toLowerCase())
       );
     }
     
-    return filtered.filter((discount): discount is Discount => discount !== null);
+    return filtered;
   };
   
   const filteredDiscounts = getFilteredDiscounts();
@@ -444,35 +420,52 @@ export default function Discounts() {
   };
   
   const handleFiltersQueryChange = useCallback(
-    (value: string) => setQueryValue(value),
-    []
+    (value: string) => {
+      if (mode === 'filtering') {
+        setTempQueryValue(value);
+      } else {
+        setQueryValue(value);
+      }
+    },
+    [mode]
   );
   
-  const handleQueryValueRemove = useCallback(() => setQueryValue(''), []);
+  const handleQueryValueRemove = useCallback(() => {
+    if (mode === 'filtering') {
+      setTempQueryValue('');
+    } else {
+      setQueryValue('');
+    }
+  }, [mode]);
+  
+  // Handle cancel action - revert to saved values
+  const handleCancel = useCallback(() => {
+    setTempQueryValue(queryValue);
+    setTempSortSelected(sortSelected);
+    setMode('default');
+  }, [queryValue, sortSelected, setMode]);
+  
+  // Handle save action - apply temp values
+  const handleSave = useCallback(() => {
+    setQueryValue(tempQueryValue);
+    setSortSelected(tempSortSelected);
+    setMode('default');
+  }, [tempQueryValue, tempSortSelected, setMode]);
   
   const tabs: TabProps[] = [
     {
       content: `All (${discounts.length})`,
-      onAction: () => {
-        console.log('Switching to All tab, total discounts:', discounts.length);
-        setSelectedTab(0);
-      },
+      onAction: () => setSelectedTab(0),
       id: 'all-discounts',
     },
     {
       content: `Active (${discounts.filter(d => d.status === 'ACTIVE').length})`,
-      onAction: () => {
-        console.log('Switching to Active tab');
-        setSelectedTab(1);
-      },
+      onAction: () => setSelectedTab(1),
       id: 'active-discounts',
     },
     {
       content: `Scheduled (${discounts.filter(d => d.status === 'SCHEDULED').length})`,
-      onAction: () => {
-        console.log('Switching to Scheduled tab');
-        setSelectedTab(2);
-      },
+      onAction: () => setSelectedTab(2),
       id: 'scheduled-discounts',
     },
   ];
@@ -482,54 +475,79 @@ export default function Discounts() {
     { label: 'Created', value: 'createdAt asc', directionLabel: 'Oldest first' },
     { label: 'Start date', value: 'startsAt desc', directionLabel: 'Newest first' },
     { label: 'Start date', value: 'startsAt asc', directionLabel: 'Oldest first' },
+    { label: 'Usage count', value: 'asyncUsageCount desc', directionLabel: 'Highest first' },
+    { label: 'Usage count', value: 'asyncUsageCount asc', directionLabel: 'Lowest first' },
     { label: 'Title', value: 'title asc', directionLabel: 'A-Z' },
     { label: 'Title', value: 'title desc', directionLabel: 'Z-A' },
   ];
   
-  // Handle sort change properly
+  // Handle sort change from IndexFilters dropdown
   const handleSortChange = useCallback((selected: string[]) => {
-    console.log('Sort changed to:', selected);
-    setSortSelected(selected);
-  }, []);
+    if (mode === 'filtering') {
+      setTempSortSelected(selected);
+    } else {
+      setSortSelected(selected);
+    }
+  }, [mode]);
   
   // Parse sort value with proper error handling
   const sortParts = sortSelected[0]?.split(' ') || ['createdAt', 'desc'];
   const [sortValue, sortDirection] = sortParts;
   
-  // Sort the filtered discounts
-  const sortedDiscounts = [...filteredDiscounts].sort((a, b) => {
-    if (!a || !b) return 0;
+  // Sort the filtered discounts using useMemo for performance
+  const sortedDiscounts = useMemo(() => {
+    if (filteredDiscounts.length === 0) {
+      return [];
+    }
     
-    const getValue = (discount: Discount | null) => {
-      if (!discount) return '';
+    const sorted = [...filteredDiscounts];
+    
+    sorted.sort((a, b) => {
+      if (!a || !b) return 0;
+      
+      let aValue: any;
+      let bValue: any;
       
       switch (sortValue) {
         case 'createdAt':
-          return discount.createdAt ? new Date(discount.createdAt).getTime() : 0;
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
         case 'startsAt':
-          return discount.startsAt ? new Date(discount.startsAt).getTime() : 0;
+          // Handle null start dates by putting them at the end
+          if (!a.startsAt && !b.startsAt) return 0;
+          if (!a.startsAt) return 1;
+          if (!b.startsAt) return -1;
+          aValue = new Date(a.startsAt).getTime();
+          bValue = new Date(b.startsAt).getTime();
+          break;
+        case 'asyncUsageCount':
+          aValue = a.asyncUsageCount || 0;
+          bValue = b.asyncUsageCount || 0;
+          break;
         case 'title':
-          return discount.title?.toLowerCase() || '';
+          aValue = a.title?.toLowerCase() || '';
+          bValue = b.title?.toLowerCase() || '';
+          break;
         default:
-          return '';
+          return 0;
       }
-    };
+      
+      // Compare values
+      if (aValue === bValue) return 0;
+      
+      // For ascending order
+      if (sortDirection === 'asc') {
+        return aValue < bValue ? -1 : 1;
+      } 
+      // For descending order
+      else {
+        return aValue > bValue ? -1 : 1;
+      }
+    });
     
-    const aValue = getValue(a);
-    const bValue = getValue(b);
-    
-    // Handle numeric vs string comparison
-    if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-    }
-    
-    // String comparison
-    if (sortDirection === 'asc') {
-      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-    } else {
-      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-    }
-  });
+    return sorted;
+  }, [filteredDiscounts, sortValue, sortDirection]);
   
   const handleExport = useCallback(() => {
     // Export only selected discounts, or all if none selected
@@ -601,82 +619,78 @@ export default function Discounts() {
   const resourceName = {
     singular: 'discount',
     plural: 'discounts',
-  };
+  } as const;
   
   const rowMarkup = sortedDiscounts.map((discount, index) => {
-    if (!discount) return null;
     const resourceId = discount.discountId || discount.id;
     const dateTime = formatDateTime(discount.createdAt);
-    const sourceTable = discount.discountClass === 'PRODUCT' ? 'Product' : 
-                       discount.discountClass === 'ORDER' ? 'Order' : 
-                       discount.discountClass === 'SHIPPING' ? 'Shipping' : 'Custom';
     
     return (
-    <IndexTable.Row
-      id={resourceId}
-      key={resourceId}
-      selected={selectedResources.includes(resourceId)}
-      position={index}
-    >
-      <IndexTable.Cell>
-        <Text variant="bodyMd" fontWeight="bold" as="span">
-          {discount.title}
-        </Text>
-      </IndexTable.Cell>
-      <IndexTable.Cell>{getStatusBadge(discount.status)}</IndexTable.Cell>
-      <IndexTable.Cell>
-        <InlineStack gap="200" align="start" blockAlign="center">
-          <Text variant="bodyMd" as="span">
-            {dateTime.date} at {dateTime.time}
-          </Text>
-          {(dateTime.relative === 'Today' || dateTime.relative === 'Yesterday') && (
-            <Badge tone="info" size="small">
-              {dateTime.relative}
-            </Badge>
-          )}
-        </InlineStack>
-      </IndexTable.Cell>
-      <IndexTable.Cell>
-        <Text variant="bodyMd" as="span">
-          {formatDate(discount.startsAt)}
-        </Text>
-      </IndexTable.Cell>
-      <IndexTable.Cell>
-        <Text variant="bodyMd" as="span">
-          {formatDate(discount.endsAt)}
-        </Text>
-      </IndexTable.Cell>
-      <IndexTable.Cell>
-        <Box width="100%" padding="200">
-          <InlineStack align="center" blockAlign="center">
-            <Text variant="bodyMd" as="span" fontWeight="medium">
-              {discount.asyncUsageCount}
+        <IndexTable.Row
+          id={resourceId}
+          key={resourceId}
+          selected={selectedResources.includes(resourceId)}
+          position={index}
+        >
+          <IndexTable.Cell>
+            <Text variant="bodyMd" fontWeight="bold" as="span">
+              {discount.title}
             </Text>
-          </InlineStack>
-        </Box>
-      </IndexTable.Cell>
-      <IndexTable.Cell>
-        <InlineStack align="end" gap="200">
-          <Button
-            variant="tertiary"
-            icon={EditIcon}
-            onClick={() => {
-              // Extract the ID number from the GID
-              const gid = discount.discountId || discount.id;
-              const idMatch = gid.match(/(\d+)$/);
-              const numericId = idMatch ? idMatch[1] : '';
-              
-              window.open(
-                `https://admin.shopify.com/store/${shopHandle}/discounts/${numericId}`,
-                '_blank'
-              );
-            }}
-            accessibilityLabel={`Edit ${discount.title}`}
-          />
-        </InlineStack>
-      </IndexTable.Cell>
-    </IndexTable.Row>
-  );
+          </IndexTable.Cell>
+          <IndexTable.Cell>{getStatusBadge(discount.status)}</IndexTable.Cell>
+          <IndexTable.Cell>
+            <InlineStack gap="200" align="start" blockAlign="center">
+              <Text variant="bodyMd" as="span">
+                {dateTime.date} at {dateTime.time}
+              </Text>
+              {(dateTime.relative === 'Today' || dateTime.relative === 'Yesterday') && (
+                <Badge tone="info" size="small">
+                  {dateTime.relative}
+                </Badge>
+              )}
+            </InlineStack>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <Text variant="bodyMd" as="span">
+              {formatDate(discount.startsAt)}
+            </Text>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <Text variant="bodyMd" as="span">
+              {formatDate(discount.endsAt)}
+            </Text>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <Box width="100%" padding="200">
+              <InlineStack align="center" blockAlign="center">
+                <Text variant="bodyMd" as="span" fontWeight="medium">
+                  {discount.asyncUsageCount}
+                </Text>
+              </InlineStack>
+            </Box>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <InlineStack align="end" gap="200">
+              <Button
+                variant="tertiary"
+                icon={EditIcon}
+                onClick={() => {
+                  // Extract the ID number from the GID
+                  const gid = discount.discountId || discount.id;
+                  const idMatch = gid.match(/(\d+)$/);
+                  const numericId = idMatch ? idMatch[1] : '';
+                  
+                  window.open(
+                    `https://admin.shopify.com/store/${shopHandle}/discounts/${numericId}`,
+                    '_blank'
+                  );
+                }}
+                accessibilityLabel={`Edit ${discount.title}`}
+              />
+            </InlineStack>
+          </IndexTable.Cell>
+      </IndexTable.Row>
+    );
   });
   
   return (
@@ -709,8 +723,8 @@ export default function Discounts() {
       <Card>
         <IndexFilters
           sortOptions={sortOptions}
-          sortSelected={sortSelected}
-          queryValue={queryValue}
+          sortSelected={mode === 'filtering' ? tempSortSelected : sortSelected}
+          queryValue={mode === 'filtering' ? tempQueryValue : queryValue}
           queryPlaceholder="Search discounts"
           onQueryChange={handleFiltersQueryChange}
           onQueryClear={handleQueryValueRemove}
@@ -723,6 +737,17 @@ export default function Discounts() {
           onClearAll={() => {}}
           mode={mode}
           setMode={setMode}
+          primaryAction={{
+            type: 'save',
+            onAction: handleSave,
+            disabled: false,
+            loading: false,
+          }}
+          cancelAction={{
+            onAction: handleCancel,
+            disabled: false,
+            loading: false,
+          }}
         />
         {sortedDiscounts.length === 0 ? (
           emptyStateMarkup
@@ -752,5 +777,3 @@ export default function Discounts() {
     </Page>
   );
 }
-
-import type { Env } from "../../server";
