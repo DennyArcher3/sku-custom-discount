@@ -19,7 +19,6 @@ import {
   Divider,
   Image,
   Select,
-  Option,
 } from "@shopify/ui-extensions-react/admin";
 import { useState, useEffect } from "react";
 
@@ -801,10 +800,11 @@ function App() {
                 value={globalDiscountType}
                 onChange={(value) => setGlobalDiscountType(value)}
                 helpText="Choose whether discounts are applied as a percentage off or a fixed amount off the price"
-              >
-                <Option value="percentage">Percentage off (%)</Option>
-                <Option value="fixedAmount">Fixed amount off ($)</Option>
-              </Select>
+                options={[
+                  { value: 'percentage', label: 'Percentage off (%)' },
+                  { value: 'fixedAmount', label: 'Fixed amount off ($)' }
+                ]}
+              />
             </BlockStack>
           </Section>
 
@@ -988,10 +988,11 @@ You can also use comma: SKU123,10.00`}
                                   [key]: { ...prev[key], discountType: value }
                                 }));
                               }}
-                            >
-                              <Option value="percentage">%</Option>
-                              <Option value="fixedAmount">$</Option>
-                            </Select>
+                              options={[
+                                { value: 'percentage', label: '%' },
+                                { value: 'fixedAmount', label: '$' }
+                              ]}
+                            />
                           </Box>
 
                           {/* Discount Input - Fixed width */}
