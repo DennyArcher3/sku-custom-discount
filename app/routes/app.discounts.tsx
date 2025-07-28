@@ -486,20 +486,30 @@ export default function Discounts() {
     { label: 'Title', value: 'title desc', directionLabel: 'Z-A' },
   ];
   
-  const [sortValue, sortDirection] = sortSelected[0].split(' ');
+  // Handle sort change properly
+  const handleSortChange = useCallback((selected: string[]) => {
+    console.log('Sort changed to:', selected);
+    setSortSelected(selected);
+  }, []);
+  
+  // Parse sort value with proper error handling
+  const sortParts = sortSelected[0]?.split(' ') || ['createdAt', 'desc'];
+  const [sortValue, sortDirection] = sortParts;
   
   // Sort the filtered discounts
   const sortedDiscounts = [...filteredDiscounts].sort((a, b) => {
     if (!a || !b) return 0;
+    
     const getValue = (discount: Discount | null) => {
       if (!discount) return '';
+      
       switch (sortValue) {
         case 'createdAt':
-          return new Date(discount.createdAt).getTime();
+          return discount.createdAt ? new Date(discount.createdAt).getTime() : 0;
         case 'startsAt':
           return discount.startsAt ? new Date(discount.startsAt).getTime() : 0;
         case 'title':
-          return discount.title.toLowerCase();
+          return discount.title?.toLowerCase() || '';
         default:
           return '';
       }
@@ -508,6 +518,12 @@ export default function Discounts() {
     const aValue = getValue(a);
     const bValue = getValue(b);
     
+    // Handle numeric vs string comparison
+    if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    }
+    
+    // String comparison
     if (sortDirection === 'asc') {
       return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
     } else {
@@ -609,23 +625,16 @@ export default function Discounts() {
       </IndexTable.Cell>
       <IndexTable.Cell>{getStatusBadge(discount.status)}</IndexTable.Cell>
       <IndexTable.Cell>
-        <BlockStack gap="100">
-          <InlineStack gap="200" align="start" blockAlign="center">
-            <Box>
-              <Text variant="bodyMd" as="span">
-                {dateTime.date}
-              </Text>
-            </Box>
-            {(dateTime.relative === 'Today' || dateTime.relative === 'Yesterday') && (
-              <Badge tone="info" size="small">
-                {dateTime.relative}
-              </Badge>
-            )}
-          </InlineStack>
-          <Text variant="bodySm" as="span" tone="subdued">
-            {dateTime.time}
+        <InlineStack gap="200" align="start" blockAlign="center">
+          <Text variant="bodyMd" as="span">
+            {dateTime.date} at {dateTime.time}
           </Text>
-        </BlockStack>
+          {(dateTime.relative === 'Today' || dateTime.relative === 'Yesterday') && (
+            <Badge tone="info" size="small">
+              {dateTime.relative}
+            </Badge>
+          )}
+        </InlineStack>
       </IndexTable.Cell>
       <IndexTable.Cell>
         <Text variant="bodyMd" as="span">
@@ -705,7 +714,7 @@ export default function Discounts() {
           queryPlaceholder="Search discounts"
           onQueryChange={handleFiltersQueryChange}
           onQueryClear={handleQueryValueRemove}
-          onSort={setSortSelected}
+          onSort={handleSortChange}
           tabs={tabs}
           selected={selectedTab}
           canCreateNewView={false}
