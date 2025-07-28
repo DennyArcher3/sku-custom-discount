@@ -830,10 +830,10 @@ function App() {
                   </InlineStack>
                   
                   {/* Compact default type selector with better alignment */}
-                  <Box paddingBlockStart="tight">
+                  <Box paddingBlockStart="base">
                     <InlineStack gap="base" blockAlignment="center">
-                      <Text variant="bodySm" tone="subdued">Default for new products:</Text>
-                      <InlineStack gap="extraTight">
+                      <Text variant="bodySm" tone="subdued">New products default:</Text>
+                      <InlineStack gap="tight">
                         <Button
                           variant={globalDiscountType === 'percentage' ? 'primary' : 'secondary'}
                           size="slim"
@@ -1017,22 +1017,15 @@ You can also use comma: SKU123,10.00`}
                           {/* Savings/Final Price - Fixed width */}
                           <Box minInlineSize={80} maxInlineSize={80} inlineAlignment="center" paddingInlineStart="base">
                             {product.price && product.value > 0 ? (
-                              <BlockStack gap="extraTight" inlineAlignment="center">
-                                {product.discountType === 'percentage' ? (
-                                  <Badge tone="critical">
-                                    -${((parseFloat(product.price) * parseFloat(product.value)) / 100).toFixed(2)}
-                                  </Badge>
-                                ) : (
-                                  <>
-                                    <Text variant="bodySm" tone="subdued" fontWeight="semiBold" alignment="center">
-                                      ${Math.max(0, parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
-                                    </Text>
-                                    <Text variant="bodySm" tone="critical" alignment="center">
-                                      -${parseFloat(product.value).toFixed(2)}
-                                    </Text>
-                                  </>
-                                )}
-                              </BlockStack>
+                              product.discountType === 'percentage' ? (
+                                <Badge tone="critical">
+                                  -${((parseFloat(product.price) * parseFloat(product.value)) / 100).toFixed(2)}
+                                </Badge>
+                              ) : (
+                                <Badge tone="success">
+                                  ${Math.max(0, parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
+                                </Badge>
+                              )
                             ) : (
                               <Text variant="bodySm" tone="subdued" alignment="center">—</Text>
                             )}
