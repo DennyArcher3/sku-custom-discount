@@ -25,9 +25,6 @@ export function createShopifyApp(env: Env) {
     distribution: AppDistribution.AppStore,
     isEmbeddedApp: true,
     future: {
-      v3_webhookAdminContext: true,
-      v3_authenticatePublic: true,
-      v3_lineItemBilling: true,
       unstable_newEmbeddedAuthStrategy: true,
     },
     ...(env.SHOP_CUSTOM_DOMAIN

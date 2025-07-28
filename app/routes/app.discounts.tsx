@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs } from "@remix-run/cloudflare";
-import { useLoaderData } from "@remix-run/react";
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/cloudflare";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import type { Env } from "../../server";
 import {
   Page,
@@ -12,18 +12,19 @@ import {
   useIndexResourceState,
   EmptyState,
   IndexFilters,
-  useSetIndexFiltersMode,
   type IndexFiltersProps,
   type TabProps,
-  Tooltip,
   Box,
+  Banner,
 } from "@shopify/polaris";
 import { 
   PlusIcon,
   EditIcon,
   ExportIcon,
+  XIcon,
+  StatusActiveIcon,
 } from "@shopify/polaris-icons";
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 interface Discount {
   id: string;
@@ -71,6 +72,74 @@ interface DebugInfo {
   envFunctionId: string | undefined;
   error?: string;
 }
+
+export const action = async ({ request, context }: ActionFunctionArgs) => {
+  const { env } = context as { env: Env };
+  const { createShopifyApp } = await import("../shopify.server");
+  const shopify = createShopifyApp(env);
+  const { admin } = await shopify.authenticate.admin(request);
+  
+  const formData = await request.formData();
+  const action = formData.get('action');
+  const discountIds = formData.getAll('discountIds');
+  
+  if (action === 'deactivate' && discountIds.length > 0) {
+    const errors = [];
+    const successes = [];
+    
+    for (const discountId of discountIds) {
+      try {
+        const mutation = `
+          mutation discountAutomaticDeactivate($id: ID!) {
+            discountAutomaticDeactivate(id: $id) {
+              automaticDiscountNode {
+                automaticDiscount {
+                  ... on DiscountAutomaticApp {
+                    discountId
+                    title
+                    status
+                  }
+                }
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `;
+        
+        const response = await admin.graphql(mutation, {
+          variables: { id: discountId }
+        });
+        
+        const data = await response.json();
+        
+        if (data.data?.discountAutomaticDeactivate?.userErrors?.length > 0) {
+          errors.push({
+            discountId,
+            errors: data.data.discountAutomaticDeactivate.userErrors
+          });
+        } else {
+          successes.push(discountId);
+        }
+      } catch (error) {
+        errors.push({
+          discountId,
+          errors: [{ message: error instanceof Error ? error.message : 'Unknown error' }]
+        });
+      }
+    }
+    
+    return {
+      success: errors.length === 0,
+      deactivated: successes,
+      errors
+    };
+  }
+  
+  return { success: false, error: 'Invalid action' };
+};
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const { env } = context as { env: Env };
@@ -290,25 +359,15 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 
 export default function Discounts() {
   const { discounts, shopHandle, functionId, appInfo, debugInfo } = useLoaderData<typeof loader>();
-  
+  const fetcher = useFetcher();
   
   // State for filters
   const [queryValue, setQueryValue] = useState('');
   const [selectedTab, setSelectedTab] = useState(0);
-  const { mode, setMode } = useSetIndexFiltersMode();
   const [sortSelected, setSortSelected] = useState(['createdAt desc']);
-  
-  // State for temporary values while in filtering mode
-  const [tempQueryValue, setTempQueryValue] = useState('');
-  const [tempSortSelected, setTempSortSelected] = useState(['createdAt desc']);
-  
-  // Sync temp values when entering filtering mode
-  useEffect(() => {
-    if (mode === 'filtering') {
-      setTempQueryValue(queryValue);
-      setTempSortSelected(sortSelected);
-    }
-  }, [mode, queryValue, sortSelected]);
+  const [showBanner, setShowBanner] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerTone, setBannerTone] = useState<'success' | 'critical'>('success');
   
   // Filter discounts based on selected tab
   const getFilteredDiscounts = () => {
@@ -421,36 +480,53 @@ export default function Discounts() {
   
   const handleFiltersQueryChange = useCallback(
     (value: string) => {
-      if (mode === 'filtering') {
-        setTempQueryValue(value);
-      } else {
-        setQueryValue(value);
-      }
+      setQueryValue(value);
     },
-    [mode]
+    []
   );
   
   const handleQueryValueRemove = useCallback(() => {
-    if (mode === 'filtering') {
-      setTempQueryValue('');
-    } else {
-      setQueryValue('');
-    }
-  }, [mode]);
+    setQueryValue('');
+  }, []);
   
-  // Handle cancel action - revert to saved values
+  // Handle cancel action - clear search and selections
   const handleCancel = useCallback(() => {
-    setTempQueryValue(queryValue);
-    setTempSortSelected(sortSelected);
-    setMode('default');
-  }, [queryValue, sortSelected, setMode]);
+    setQueryValue('');
+    handleSelectionChange('Page' as any, false);
+  }, [handleSelectionChange]);
   
-  // Handle save action - apply temp values
-  const handleSave = useCallback(() => {
-    setQueryValue(tempQueryValue);
-    setSortSelected(tempSortSelected);
-    setMode('default');
-  }, [tempQueryValue, tempSortSelected, setMode]);
+  // Handle deactivate action
+  const handleDeactivate = useCallback(() => {
+    if (selectedResources.length === 0) return;
+    
+    const formData = new FormData();
+    formData.append('action', 'deactivate');
+    selectedResources.forEach(id => {
+      formData.append('discountIds', id);
+    });
+    
+    fetcher.submit(formData, { method: 'post' });
+  }, [selectedResources, fetcher]);
+  
+  // Handle fetcher response
+  useMemo(() => {
+    if (fetcher.data) {
+      const data = fetcher.data as any;
+      if (data.success) {
+        setBannerMessage(`Successfully deactivated ${data.deactivated.length} discount(s)`);
+        setBannerTone('success');
+        setShowBanner(true);
+        handleSelectionChange('Page' as any, false);
+        // Hide banner after 5 seconds
+        setTimeout(() => setShowBanner(false), 5000);
+      } else if (data.errors) {
+        setBannerMessage(`Failed to deactivate some discounts. Please try again.`);
+        setBannerTone('critical');
+        setShowBanner(true);
+        setTimeout(() => setShowBanner(false), 5000);
+      }
+    }
+  }, [fetcher.data, handleSelectionChange]);
   
   const tabs: TabProps[] = [
     {
@@ -483,12 +559,8 @@ export default function Discounts() {
   
   // Handle sort change from IndexFilters dropdown
   const handleSortChange = useCallback((selected: string[]) => {
-    if (mode === 'filtering') {
-      setTempSortSelected(selected);
-    } else {
-      setSortSelected(selected);
-    }
-  }, [mode]);
+    setSortSelected(selected);
+  }, []);
   
   // Parse sort value with proper error handling
   const sortParts = sortSelected[0]?.split(' ') || ['createdAt', 'desc'];
@@ -720,11 +792,18 @@ export default function Discounts() {
         }
       ]}
     >
+      {showBanner && (
+        <Banner
+          title={bannerMessage}
+          tone={bannerTone}
+          onDismiss={() => setShowBanner(false)}
+        />
+      )}
       <Card>
         <IndexFilters
           sortOptions={sortOptions}
-          sortSelected={mode === 'filtering' ? tempSortSelected : sortSelected}
-          queryValue={mode === 'filtering' ? tempQueryValue : queryValue}
+          sortSelected={sortSelected}
+          queryValue={queryValue}
           queryPlaceholder="Search discounts"
           onQueryChange={handleFiltersQueryChange}
           onQueryClear={handleQueryValueRemove}
@@ -735,20 +814,36 @@ export default function Discounts() {
           filters={[]}
           appliedFilters={[]}
           onClearAll={() => {}}
-          mode={mode}
-          setMode={setMode}
-          primaryAction={{
-            type: 'save',
-            onAction: handleSave,
-            disabled: false,
-            loading: false,
-          }}
-          cancelAction={{
-            onAction: handleCancel,
-            disabled: false,
-            loading: false,
-          }}
+          mode={'default' as any}
+          setMode={() => {}}
         />
+        {selectedResources.length > 0 && (
+          <div style={{ padding: '16px', borderBottom: '1px solid #e1e3e5' }}>
+            <InlineStack gap="400" align="space-between">
+              <Text variant="bodyMd" as="p">
+                {selectedResources.length} selected
+              </Text>
+              <InlineStack gap="200">
+                <Button
+                  variant="plain"
+                  icon={XIcon}
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  tone="critical"
+                  icon={StatusActiveIcon}
+                  onClick={handleDeactivate}
+                  loading={fetcher.state === 'submitting'}
+                >
+                  Deactivate
+                </Button>
+              </InlineStack>
+            </InlineStack>
+          </div>
+        )}
         {sortedDiscounts.length === 0 ? (
           emptyStateMarkup
         ) : (
