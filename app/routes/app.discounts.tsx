@@ -16,6 +16,7 @@ import {
   type TabProps,
   Tooltip,
   Box,
+  BlockStack,
 } from "@shopify/polaris";
 import { 
   PlusIcon,
@@ -331,18 +332,37 @@ export default function Discounts() {
   
   // State for filters
   const [queryValue, setQueryValue] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string[] | undefined>(undefined);
+  const [selectedTab, setSelectedTab] = useState(0);
   const { mode, setMode } = useSetIndexFiltersMode();
   const [sortSelected, setSortSelected] = useState(['createdAt desc']);
   
-  // Filter and sort discounts
-  const filteredDiscounts = discounts.filter((discount): discount is Discount => {
-    if (!discount) return false;
-    const matchesQuery = discount.title.toLowerCase().includes(queryValue.toLowerCase());
-    const matchesStatus = !statusFilter || statusFilter.length === 0 || 
-                         statusFilter.includes(discount.status.toLowerCase());
-    return matchesQuery && matchesStatus;
-  });
+  // Filter discounts based on selected tab
+  const getFilteredDiscounts = () => {
+    // Always start with a fresh copy of discounts
+    let filtered = [...discounts];
+    
+    // Apply tab filter
+    switch (selectedTab) {
+      case 1: // Active tab
+        filtered = filtered.filter(discount => discount.status === 'ACTIVE');
+        break;
+      case 2: // Scheduled tab
+        filtered = filtered.filter(discount => discount.status === 'SCHEDULED');
+        break;
+      // case 0 is "All" - no filtering needed
+    }
+    
+    // Apply search query filter
+    if (queryValue) {
+      filtered = filtered.filter(discount => 
+        discount.title.toLowerCase().includes(queryValue.toLowerCase())
+      );
+    }
+    
+    return filtered.filter((discount): discount is Discount => discount !== null);
+  };
+  
+  const filteredDiscounts = getFilteredDiscounts();
   
   // Setup resource state for selection
   const resourceIDResolver = (discount: Discount) => discount.discountId || discount.id;
@@ -361,6 +381,11 @@ export default function Discounts() {
   
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '—';
+    return new Date(dateString).toLocaleDateString();
+  };
+  
+  const formatDateForCSV = (dateString: string | null) => {
+    if (!dateString) return '';
     return new Date(dateString).toLocaleDateString();
   };
   
@@ -388,12 +413,17 @@ export default function Discounts() {
     
     // Relative time
     let relative = '';
-    if (diffDays === 0) {
+    // Check if dates are on the same calendar day
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayDiff = Math.floor((nowOnly.getTime() - dateOnly.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (dayDiff === 0) {
       relative = 'Today';
-    } else if (diffDays === 1) {
+    } else if (dayDiff === 1) {
       relative = 'Yesterday';
-    } else if (diffDays < 7) {
-      relative = `${diffDays} days ago`;
+    } else if (dayDiff < 7) {
+      relative = `${dayDiff} days ago`;
     } else if (diffDays < 30) {
       const weeks = Math.floor(diffDays / 7);
       relative = `${weeks} week${weeks > 1 ? 's' : ''} ago`;
@@ -422,25 +452,36 @@ export default function Discounts() {
   
   const tabs: TabProps[] = [
     {
-      content: 'All',
-      onAction: () => console.log('All'),
+      content: `All (${discounts.length})`,
+      onAction: () => {
+        console.log('Switching to All tab, total discounts:', discounts.length);
+        setSelectedTab(0);
+      },
       id: 'all-discounts',
     },
     {
-      content: 'Active',
-      onAction: () => setStatusFilter(['active']),
+      content: `Active (${discounts.filter(d => d.status === 'ACTIVE').length})`,
+      onAction: () => {
+        console.log('Switching to Active tab');
+        setSelectedTab(1);
+      },
       id: 'active-discounts',
     },
     {
-      content: 'Scheduled',
-      onAction: () => setStatusFilter(['scheduled']),
+      content: `Scheduled (${discounts.filter(d => d.status === 'SCHEDULED').length})`,
+      onAction: () => {
+        console.log('Switching to Scheduled tab');
+        setSelectedTab(2);
+      },
       id: 'scheduled-discounts',
     },
   ];
   
   const sortOptions: IndexFiltersProps['sortOptions'] = [
-    { label: 'Created', value: 'createdAt asc', directionLabel: 'Oldest first' },
     { label: 'Created', value: 'createdAt desc', directionLabel: 'Newest first' },
+    { label: 'Created', value: 'createdAt asc', directionLabel: 'Oldest first' },
+    { label: 'Start date', value: 'startsAt desc', directionLabel: 'Newest first' },
+    { label: 'Start date', value: 'startsAt asc', directionLabel: 'Oldest first' },
     { label: 'Title', value: 'title asc', directionLabel: 'A-Z' },
     { label: 'Title', value: 'title desc', directionLabel: 'Z-A' },
   ];
@@ -455,6 +496,8 @@ export default function Discounts() {
       switch (sortValue) {
         case 'createdAt':
           return new Date(discount.createdAt).getTime();
+        case 'startsAt':
+          return discount.startsAt ? new Date(discount.startsAt).getTime() : 0;
         case 'title':
           return discount.title.toLowerCase();
         default:
@@ -473,18 +516,25 @@ export default function Discounts() {
   });
   
   const handleExport = useCallback(() => {
+    // Export only selected discounts, or all if none selected
+    const discountsToExport = selectedResources.length > 0 
+      ? sortedDiscounts.filter(discount => {
+          const resourceId = discount.discountId || discount.id;
+          return selectedResources.includes(resourceId);
+        })
+      : sortedDiscounts;
+    
     // Prepare CSV data
-    const csvHeaders = ['Title', 'Status', 'Created Date', 'Start Date', 'End Date', 'Type', 'Usage Count', 'Code'];
-    const csvRows = sortedDiscounts.map(discount => {
+    const csvHeaders = ['Title', 'Status', 'Created Date', 'Start Date', 'End Date', 'Usage Count', 'Code'];
+    const csvRows = discountsToExport.map(discount => {
       const code = discount.codes?.edges?.[0]?.node?.code || '';
       const createdDateTime = formatDateTime(discount.createdAt);
       return [
         discount.title,
         discount.status,
-        `${createdDateTime.date} ${createdDateTime.time}`,
-        formatDate(discount.startsAt),
-        formatDate(discount.endsAt),
-        discount.discountClass || 'N/A',
+        createdDateTime.date !== '—' ? `${createdDateTime.date} ${createdDateTime.time}` : '',
+        formatDateForCSV(discount.startsAt),
+        formatDateForCSV(discount.endsAt),
         discount.asyncUsageCount.toString(),
         code
       ];
@@ -498,19 +548,23 @@ export default function Discounts() {
       )
     ].join('\n');
     
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Create blob and download with UTF-8 BOM for better Excel compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
+    const exportCount = selectedResources.length > 0 ? selectedResources.length : sortedDiscounts.length;
+    const filename = `discounts_${shopHandle}_${exportCount}_items_${new Date().toISOString().split('T')[0]}.csv`;
+    
     link.setAttribute('href', url);
-    link.setAttribute('download', `discounts_${shopHandle}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
     
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [sortedDiscounts, shopHandle]);
+  }, [sortedDiscounts, shopHandle, selectedResources]);
   
   const emptyStateMarkup = (
     <EmptyState
@@ -537,6 +591,9 @@ export default function Discounts() {
     if (!discount) return null;
     const resourceId = discount.discountId || discount.id;
     const dateTime = formatDateTime(discount.createdAt);
+    const sourceTable = discount.discountClass === 'PRODUCT' ? 'Product' : 
+                       discount.discountClass === 'ORDER' ? 'Order' : 
+                       discount.discountClass === 'SHIPPING' ? 'Shipping' : 'Custom';
     
     return (
     <IndexTable.Row
@@ -552,22 +609,23 @@ export default function Discounts() {
       </IndexTable.Cell>
       <IndexTable.Cell>{getStatusBadge(discount.status)}</IndexTable.Cell>
       <IndexTable.Cell>
-        <Box>
-          <Tooltip content={`Created on ${dateTime.date} at ${dateTime.time}`}>
-            <InlineStack gap="100" align="start" blockAlign="center">
-              <Box>
-                <Text variant="bodyMd" as="span" tone="subdued">
-                  {dateTime.date}
-                </Text>
-              </Box>
-              <Box>
-                <Badge tone="info-strong" size="small">
-                  {dateTime.relative}
-                </Badge>
-              </Box>
-            </InlineStack>
-          </Tooltip>
-        </Box>
+        <BlockStack gap="100">
+          <InlineStack gap="200" align="start" blockAlign="center">
+            <Box>
+              <Text variant="bodyMd" as="span">
+                {dateTime.date}
+              </Text>
+            </Box>
+            {(dateTime.relative === 'Today' || dateTime.relative === 'Yesterday') && (
+              <Badge tone="info" size="small">
+                {dateTime.relative}
+              </Badge>
+            )}
+          </InlineStack>
+          <Text variant="bodySm" as="span" tone="subdued">
+            {dateTime.time}
+          </Text>
+        </BlockStack>
       </IndexTable.Cell>
       <IndexTable.Cell>
         <Text variant="bodyMd" as="span">
@@ -580,30 +638,33 @@ export default function Discounts() {
         </Text>
       </IndexTable.Cell>
       <IndexTable.Cell>
-        <Badge tone="info">{discount.discountClass || 'N/A'}</Badge>
+        <Box width="100%" padding="200">
+          <InlineStack align="center" blockAlign="center">
+            <Text variant="bodyMd" as="span" fontWeight="medium">
+              {discount.asyncUsageCount}
+            </Text>
+          </InlineStack>
+        </Box>
       </IndexTable.Cell>
       <IndexTable.Cell>
-        <Text variant="bodyMd" as="span" fontWeight="medium">
-          {discount.asyncUsageCount}
-        </Text>
-      </IndexTable.Cell>
-      <IndexTable.Cell>
-        <Button
-          variant="tertiary"
-          icon={EditIcon}
-          onClick={() => {
-            // Extract the ID number from the GID
-            const gid = discount.discountId || discount.id;
-            const idMatch = gid.match(/(\d+)$/);
-            const numericId = idMatch ? idMatch[1] : '';
-            
-            window.open(
-              `https://admin.shopify.com/store/${shopHandle}/discounts/${numericId}`,
-              '_blank'
-            );
-          }}
-          accessibilityLabel={`Edit ${discount.title}`}
-        />
+        <InlineStack align="end" gap="200">
+          <Button
+            variant="tertiary"
+            icon={EditIcon}
+            onClick={() => {
+              // Extract the ID number from the GID
+              const gid = discount.discountId || discount.id;
+              const idMatch = gid.match(/(\d+)$/);
+              const numericId = idMatch ? idMatch[1] : '';
+              
+              window.open(
+                `https://admin.shopify.com/store/${shopHandle}/discounts/${numericId}`,
+                '_blank'
+              );
+            }}
+            accessibilityLabel={`Edit ${discount.title}`}
+          />
+        </InlineStack>
       </IndexTable.Cell>
     </IndexTable.Row>
   );
@@ -619,48 +680,13 @@ export default function Discounts() {
       }}
       secondaryActions={[
         {
-          content: 'Test Query',
-          accessibilityLabel: 'Test GraphQL Query',
-          onAction: async () => {
-            console.log('Running test query...');
-            try {
-              const response = await fetch('/app/discounts/test-query');
-              const data = await response.json() as any;
-              console.log('Test query result:', data);
-              
-              if (data.error) {
-                alert(`Error: ${data.error}`);
-                return;
-              }
-              
-              const message = `
-Total discounts: ${data.totalDiscounts}
-App discounts: ${data.appDiscounts}
-Our app discounts: ${data.ourAppDiscounts}
-Function ID: ${data.functionId}
-
-App Info:
-- ID: ${data.appInfo?.id || 'N/A'}
-- Title: ${data.appInfo?.title || 'N/A'}
-- Functions: ${data.appInfo?.discountFunctions?.length || 0}
-
-Check console for full details.`;
-              
-              alert(message);
-              
-              // Log detailed info
-              console.log('=== DISCOUNT ANALYSIS ===');
-              console.log('Total discounts found:', data.totalDiscounts);
-              console.log('App discounts found:', data.appDiscounts);
-              console.log('Our app discounts found:', data.ourAppDiscounts);
-              console.log('Function ID we\'re looking for:', data.functionId);
-              console.log('App info:', data.appInfo);
-              console.log('All discounts:', data.discounts);
-              console.log('========================');
-            } catch (error) {
-              console.error('Test query error:', error);
-              alert('Error running test query. Check console.');
-            }
+          content: 'Go to Discount Page',
+          accessibilityLabel: 'Go to Shopify discount page',
+          onAction: () => {
+            window.open(
+              `https://admin.shopify.com/store/${shopHandle}/discounts`,
+              '_blank'
+            );
           },
         },
         {
@@ -681,7 +707,7 @@ Check console for full details.`;
           onQueryClear={handleQueryValueRemove}
           onSort={setSortSelected}
           tabs={tabs}
-          selected={0}
+          selected={selectedTab}
           canCreateNewView={false}
           filters={[]}
           appliedFilters={[]}
@@ -705,10 +731,10 @@ Check console for full details.`;
               { title: 'Created' },
               { title: 'Start date' },
               { title: 'End date' },
-              { title: 'Type' },
-              { title: 'Usage count' },
+              { title: 'Usage Count', alignment: 'center' },
               { title: 'Actions', alignment: 'end' },
             ]}
+            selectable={true}
           >
             {rowMarkup}
           </IndexTable>

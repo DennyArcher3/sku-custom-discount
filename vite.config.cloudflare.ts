@@ -29,20 +29,6 @@ export default defineConfig({
     minify: true,
     sourcemap: false,
     rollupOptions: {
-      external: [
-        "node:crypto",
-        "node:fs",
-        "node:path",
-        "node:stream",
-        "node:buffer",
-        "node:util",
-        "node:url",
-        "node:net",
-        "node:http",
-        "node:https",
-        "node:zlib",
-        "node:process",
-      ],
       output: {
         format: "esm",
       },

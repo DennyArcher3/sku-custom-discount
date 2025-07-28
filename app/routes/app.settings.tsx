@@ -1,6 +1,5 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/cloudflare";
 import { json } from "@remix-run/cloudflare";
-import { createShopifyApp } from "../shopify.server";
 import { useLoaderData, Form, useActionData, useNavigation } from "@remix-run/react";
 import type { Env } from "../../server";
 import {
@@ -22,12 +21,13 @@ import { useState, useEffect } from "react";
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const { env } = context as { env: Env };
+  const { createShopifyApp } = await import("../shopify.server");
   const shopify = createShopifyApp(env);
   const { session } = await shopify.authenticate.admin(request);
   
   // Load existing settings from database
   let settings = {
-    defaultDiscountType: 'percentage',
+    defaultDiscountType: 'fixed',
     enableBulkImport: true,
     enablePreview: true,
     maxSkusPerDiscount: 100,
@@ -36,7 +36,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   
   try {
     const result = await env.DB.prepare(
-      "SELECT * FROM settings WHERE shop = ?"
+      "SELECT * FROM app_settings WHERE shop = ?"
     ).bind(session.shop).first();
     
     if (result) {
@@ -51,6 +51,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { env } = context as { env: Env };
+  const { createShopifyApp } = await import("../shopify.server");
   const shopify = createShopifyApp(env);
   const { session } = await shopify.authenticate.admin(request);
   
@@ -67,18 +68,18 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   try {
     // Check if settings exist
     const existing = await env.DB.prepare(
-      "SELECT id FROM settings WHERE shop = ?"
+      "SELECT id FROM app_settings WHERE shop = ?"
     ).bind(session.shop).first();
     
     if (existing) {
       // Update existing settings
       await env.DB.prepare(
-        "UPDATE settings SET settings = ?, updated_at = CURRENT_TIMESTAMP WHERE shop = ?"
+        "UPDATE app_settings SET settings = ?, updated_at = CURRENT_TIMESTAMP WHERE shop = ?"
       ).bind(JSON.stringify(settings), session.shop).run();
     } else {
       // Insert new settings
       await env.DB.prepare(
-        "INSERT INTO settings (shop, settings) VALUES (?, ?)"
+        "INSERT INTO app_settings (shop, settings) VALUES (?, ?)"
       ).bind(session.shop, JSON.stringify(settings)).run();
     }
     
@@ -98,7 +99,7 @@ export default function Settings() {
   const [hasChanges, setHasChanges] = useState(false);
   
   useEffect(() => {
-    if (actionData?.success && actionData.settings) {
+    if (actionData?.success && 'settings' in actionData && actionData.settings) {
       setSettings(actionData.settings);
       setHasChanges(false);
     }
@@ -114,7 +115,6 @@ export default function Settings() {
   return (
     <Page
       title="Settings"
-      breadcrumbs={[{ content: 'Home', url: '/app' }]}
     >
       <Layout>
         <Layout.Section>
@@ -124,7 +124,7 @@ export default function Settings() {
             </Banner>
           )}
           
-          {actionData?.error && (
+          {actionData && 'error' in actionData && actionData.error && (
             <Banner tone="critical" onDismiss={() => {}}>
               {actionData.error}
             </Banner>
@@ -155,6 +155,7 @@ export default function Settings() {
                   onChange={(value) => handleChange('maxSkusPerDiscount', value)}
                   name="maxSkusPerDiscount"
                   helpText="The maximum number of SKUs that can be added to a single discount"
+                  autoComplete="off"
                 />
                 
                 <Divider />
@@ -203,6 +204,7 @@ export default function Settings() {
                   name="notificationEmail"
                   helpText="Receive notifications about discount usage and errors"
                   placeholder="admin@example.com"
+                  autoComplete="email"
                 />
                 
                 <InlineStack gap="300" align="end">

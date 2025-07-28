@@ -19,7 +19,7 @@ export default {
       // Log incoming requests
       console.log(`Incoming request: ${request.method} ${request.url}`);
       
-      const handler = createRequestHandler(build, "production");
+      const handler = createRequestHandler(build as any, "production");
       const loadContext = { env };
       const response = await handler(request, loadContext);
       

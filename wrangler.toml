@@ -14,6 +14,12 @@ SHOPIFY_API_KEY = "3122acfb32ed2de15a381bde53864f1f"
 SHOPIFY_APP_URL = "http://localhost:8788"
 SHOPIFY_DISCOUNT_FUNCTION_ID = "fe78075e-5113-4962-a155-4a63009f85c7"
 
+# Local development database
+[[d1_databases]]
+binding = "DB"
+database_name = "sku-discount-db-local"
+database_id = "local"
+
 # Staging environment
 [env.staging]
 name = "sku-custom-discount-staging"
