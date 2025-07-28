@@ -17,7 +17,7 @@ export function createShopifyApp(env: Env) {
   return shopifyApp({
     apiKey: env.SHOPIFY_API_KEY,
     apiSecretKey: env.SHOPIFY_API_SECRET || "",
-    apiVersion: ApiVersion.January25,
+    apiVersion: ApiVersion.July25,
     scopes: env.SCOPES?.split(","),
     appUrl: env.SHOPIFY_APP_URL || "",
     authPathPrefix: "/auth",
@@ -36,7 +36,7 @@ export function createShopifyApp(env: Env) {
   });
 }
 
-export const apiVersion = ApiVersion.January25;
+export const apiVersion = ApiVersion.July25;
 
 // Export functions that work with context
 export function getShopifyApi(context: { env: Env }) {

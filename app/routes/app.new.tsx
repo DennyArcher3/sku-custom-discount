@@ -5,7 +5,7 @@ import type { Env } from "../../server";
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const { env } = context as { env: Env };
   const shopify = createShopifyApp(env);
-  const { admin, session } = await shopify.authenticate.admin(request);
+  const { session } = await shopify.authenticate.admin(request);
   
   // Get the functionId from the URL
   const url = new URL(request.url);

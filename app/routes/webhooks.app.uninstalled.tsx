@@ -5,7 +5,7 @@ import type { Env } from "../../server";
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { env } = context as { env: Env };
   const shopify = createShopifyApp(env);
-  const { shop, session, topic } = await shopify.authenticate.webhook(request);
+  const { shop, topic } = await shopify.authenticate.webhook(request);
 
   console.log(`Received ${topic} webhook for ${shop}`);
 

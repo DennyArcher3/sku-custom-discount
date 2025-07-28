@@ -1,13 +1,88 @@
-/** @type {import('@types/eslint').Linter.BaseConfig} */
+/**
+ * This is intended to be a basic starting point for linting in your app.
+ * It relies on recommended configs out of the box for simplicity, but you can
+ * and should modify this configuration to best suit your team's needs.
+ */
+
+/** @type {import('eslint').Linter.Config} */
 module.exports = {
   root: true,
-  extends: [
-    "@remix-run/eslint-config",
-    "@remix-run/eslint-config/node",
-    "@remix-run/eslint-config/jest-testing-library",
-    "prettier",
-  ],
+  parserOptions: {
+    ecmaVersion: "latest",
+    sourceType: "module",
+    ecmaFeatures: {
+      jsx: true,
+    },
+  },
+  env: {
+    browser: true,
+    commonjs: true,
+    es6: true,
+  },
   globals: {
-    shopify: "readonly"
+    shopify: "readonly",
+  },
+  ignorePatterns: [
+    "node_modules",
+    "build",
+    "public/build",
+    "dist",
+    "extensions/**/dist",
+    "*.min.js",
+  ],
+  // Base config
+  extends: ["eslint:recommended", "prettier"],
+  overrides: [
+    // React
+    {
+      files: ["**/*.{js,jsx,ts,tsx}"],
+      plugins: ["react"],
+      extends: [
+        "plugin:react/recommended",
+        "plugin:react/jsx-runtime",
+        "plugin:react-hooks/recommended",
+      ],
+      settings: {
+        react: {
+          version: "detect",
+        },
+        formComponents: ["Form"],
+        linkComponents: [
+          { name: "Link", linkAttribute: "to" },
+          { name: "NavLink", linkAttribute: "to" },
+        ],
+      },
+    },
+    // TypeScript
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: ["@typescript-eslint"],
+      parser: "@typescript-eslint/parser",
+      extends: [
+        "plugin:@typescript-eslint/recommended",
+      ],
+      rules: {
+        "@typescript-eslint/no-unused-vars": ["error", { 
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_"
+        }],
+        "@typescript-eslint/no-explicit-any": "off",
+      },
+    },
+    // Node
+    {
+      files: [".eslintrc.cjs", "server.js", "*.config.js", "*.config.ts", "build-worker.js"],
+      env: {
+        node: true,
+      },
+    },
+  ],
+  rules: {
+    // Allow console.log in development
+    "no-console": process.env.NODE_ENV === "production" ? "warn" : "off",
+    // React specific
+    "react/prop-types": "off", // TypeScript handles this
+    // General
+    "no-unused-vars": "off", // Let TypeScript handle this
   },
 };

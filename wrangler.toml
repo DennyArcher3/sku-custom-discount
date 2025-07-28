@@ -1,30 +1,65 @@
-name = "sku-custom-discount-production"
+# Base configuration - will be used for development with wrangler dev
+name = "sku-custom-discount"
 main = "server.ts"
-compatibility_date = "2025-01-27" # Latest date for all current features
+compatibility_date = "2025-01-27"
 compatibility_flags = ["nodejs_compat"]
-
-# Serve static assets from the build directory
 assets = { directory = "./build/client" }
 
-[build]
-command = "npm run build:cf"
+# Default vars for local development
+[vars]
+ENVIRONMENT = "development"
+NODE_ENV = "development"
+SCOPES = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
+SHOPIFY_API_KEY = "3122acfb32ed2de15a381bde53864f1f"
+SHOPIFY_APP_URL = "http://localhost:8788"
+SHOPIFY_DISCOUNT_FUNCTION_ID = "fe78075e-5113-4962-a155-4a63009f85c7"
 
-[[kv_namespaces]]
+# Staging environment
+[env.staging]
+name = "sku-custom-discount-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+NODE_ENV = "production"
+SCOPES = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
+SHOPIFY_API_KEY = "3122acfb32ed2de15a381bde53864f1f"
+SHOPIFY_APP_URL = "https://sku-custom-discount-staging.eromage3.workers.dev"
+SHOPIFY_DISCOUNT_FUNCTION_ID = "fe78075e-5113-4962-a155-4a63009f85c7"
+
+[[env.staging.kv_namespaces]]
+binding = "SESSIONS"
+id = "9d797859aba04bfeb8364110440b72df"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "sku-discount-db-staging"
+database_id = "40b1591d-5fa4-4439-8979-3b1406024663"
+
+# Production environment
+[env.production]
+name = "sku-custom-discount-production"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+NODE_ENV = "production"
+SCOPES = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
+SHOPIFY_API_KEY = "3122acfb32ed2de15a381bde53864f1f"
+SHOPIFY_APP_URL = "https://sku-custom-discount-production.eromage3.workers.dev"
+SHOPIFY_DISCOUNT_FUNCTION_ID = "fe78075e-5113-4962-a155-4a63009f85c7"
+
+[[env.production.kv_namespaces]]
 binding = "SESSIONS"
 id = "8b252d829fc1454182e2c6814bdcae2e"
 
-[[d1_databases]]
+[[env.production.d1_databases]]
 binding = "DB"
 database_name = "sku-discount-db"
 database_id = "0ce2dfcb-1c94-4ee8-b630-8349cc9a54b3"
 
-[vars]
-NODE_ENV = "production"
-SCOPES = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
-SHOPIFY_API_KEY = "3122acfb32ed2de15a381bde53864f1f"
-SHOPIFY_API_SECRET = "640cbc2a69ce6306bf4f25a78ff17c56"
-SHOPIFY_APP_URL = "https://sku-custom-discount-production.eromage3.workers.dev"
-SHOPIFY_DISCOUNT_FUNCTION_ID = "fe78075e-5113-4962-a155-4a63009f85c7"
+# Observability configuration
+[observability]
+enabled = true
 
-# Production environment is now the default/only environment
-# No need for [env.production] section since we're using the top-level config
+[observability.logs]
+enabled = true
+invocation_logs = true

@@ -43,6 +43,9 @@ export default defineConfig({
         "node:zlib",
         "node:process",
       ],
+      output: {
+        format: "esm",
+      },
     },
   },
   ssr: {
@@ -50,6 +53,14 @@ export default defineConfig({
     noExternal: true,
     resolve: {
       conditions: ["workerd", "worker", "browser"],
+      externalConditions: ["workerd", "worker"],
+    },
+  },
+  optimizeDeps: {
+    include: ["@shopify/polaris", "@shopify/app-bridge-react"],
+    esbuildOptions: {
+      target: "esnext",
+      platform: "browser",
     },
   },
 });

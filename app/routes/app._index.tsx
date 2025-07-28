@@ -3,6 +3,24 @@ import { createShopifyApp } from "../shopify.server";
 import { useLoaderData, useRouteError } from "@remix-run/react";
 import type { Env } from "../../server";
 import { boundary } from "@shopify/shopify-app-remix/server";
+import {
+  Page,
+  Layout,
+  Card,
+  Button,
+  Text,
+  Banner,
+  Badge,
+  InlineStack,
+  BlockStack,
+  Box,
+  Divider,
+} from "@shopify/polaris";
+import {
+  DiscountIcon,
+  ImportIcon,
+  ViewIcon,
+} from "@shopify/polaris-icons";
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const { env } = context as { env: Env };
@@ -123,104 +141,191 @@ export default function Index() {
     window.open(discountUrl, '_blank');
   };
 
-  const features = [
-    { title: "SKU-Based Targeting", description: "Apply discounts to specific products by entering their SKU codes" },
-    { title: "Bulk Import", description: "Import multiple SKUs and discount percentages at once" },
-    { title: "Real-time Preview", description: "See which products will be affected before saving" }
-  ];
-
-  const steps = [
-    "Click 'Create Discount' to open Shopify's discount page",
-    "Your app will be pre-selected in the discount type",
-    "Enter SKUs and discount percentages",
-    "Set date range and usage limits",
-    "Save and your discount is live!"
-  ];
-
   return (
-    <s-page>
-      {/* Hero Section with Banner */}
-      <s-banner tone="info" heading="Create SKU-Based Discounts">
-        Target specific products by their SKU codes and apply percentage discounts automatically
-      </s-banner>
-      
-      <s-section>
-        <s-stack gap="large">
-          <s-box>
-            <s-stack gap="base">
-              <s-heading>Welcome to SKU Custom Discount</s-heading>
-              <s-text>Create powerful, targeted discounts that apply only to specific products in your store. Simply enter SKU codes and discount percentages to get started.</s-text>
-            </s-stack>
-          </s-box>
-          <s-box>
-            <s-button variant="primary" onClick={handleCreateDiscount}>
-              Create Your First Discount
-            </s-button>
-          </s-box>
-        </s-stack>
-      </s-section>
+    <Page>
+      <BlockStack gap="800">
+        {/* Welcome Banner */}
+        <Banner
+          title="Create targeted discounts by SKU"
+          tone="info"
+        >
+          <p>Apply percentage discounts to specific products using their SKU codes. Perfect for clearance sales, vendor-specific promotions, or targeted campaigns.</p>
+        </Banner>
 
-      {/* Features Section */}
-      <s-section heading="Key Features">
-        <s-grid>
-          {features.map((feature, index) => (
-            <s-box key={index} padding="large" background="subdued" borderRadius="base" border="base">
-              <s-stack gap="base">
-                <s-box>
-                  <s-badge tone="success">{index + 1}</s-badge>
-                </s-box>
-                <s-stack gap="small">
-                  <s-heading>{feature.title}</s-heading>
-                  <s-text>{feature.description}</s-text>
-                </s-stack>
-              </s-stack>
-            </s-box>
-          ))}
-        </s-grid>
-      </s-section>
+        {/* Main Actions */}
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2">
+                  Get Started with SKU Discounts
+                </Text>
+                <Text variant="bodyMd" as="p" tone="subdued">
+                  Create powerful, targeted discounts that apply only to products with specific SKU codes.
+                </Text>
+                <Box paddingBlockStart="400">
+                  <Button
+                    variant="primary"
+                    size="large"
+                    icon={DiscountIcon}
+                    onClick={handleCreateDiscount}
+                  >
+                    Create New Discount
+                  </Button>
+                </Box>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
 
-      {/* How it Works Section */}
-      <s-section heading="How It Works">
-        <s-stack gap="base">
-          {steps.map((step, index) => (
-            <s-box key={index}>
-              <s-stack gap="small">
-                <s-badge tone="info">{index + 1}</s-badge>
-                <s-text>{step}</s-text>
-              </s-stack>
-            </s-box>
-          ))}
-        </s-stack>
-      </s-section>
+          <Layout.Section variant="oneThird">
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <Text variant="headingMd" as="h3">
+                    Quick Links
+                  </Text>
+                </InlineStack>
+                <BlockStack gap="200">
+                  <Button
+                    variant="plain"
+                    icon={ViewIcon}
+                    onClick={() => window.open(`https://admin.shopify.com/store/${shopHandle}/discounts`, '_blank')}
+                  >
+                    View All Discounts
+                  </Button>
+                  <Button
+                    variant="plain"
+                    icon={ImportIcon}
+                    onClick={() => window.open('https://help.shopify.com/en/manual/discounts', '_blank')}
+                  >
+                    Documentation
+                  </Button>
+                </BlockStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
 
-      {/* Quick Actions Section */}
-      <s-section heading="Quick Actions">
-        <s-grid>
-          <s-section>
-            <s-stack gap="base">
-              <s-heading>Need Help?</s-heading>
-              <s-text>View our documentation for detailed guides and examples</s-text>
-              <s-box>
-                <s-button variant="secondary" href="https://help.shopify.com/en/manual/discounts" target="_blank">
-                  View Documentation
-                </s-button>
-              </s-box>
-            </s-stack>
-          </s-section>
-          <s-section>
-            <s-stack gap="base">
-              <s-heading>Manage Discounts</s-heading>
-              <s-text>View and edit your existing SKU-based discounts</s-text>
-              <s-box>
-                <s-button variant="secondary" href={`https://admin.shopify.com/store/${shopHandle}/discounts`} target="_blank">
-                  View All Discounts
-                </s-button>
-              </s-box>
-            </s-stack>
-          </s-section>
-        </s-grid>
-      </s-section>
-    </s-page>
+        {/* Features */}
+        <BlockStack gap="400">
+          <Text variant="headingLg" as="h2">
+            Key Features
+          </Text>
+          <Layout>
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="400">
+                  <Box>
+                    <Badge tone="success">SKU Targeting</Badge>
+                  </Box>
+                  <Text variant="headingMd" as="h3">
+                    Precise SKU Targeting
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    Apply discounts to specific products by entering their exact SKU codes. No more broad category discounts when you need precision.
+                  </Text>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="400">
+                  <Box>
+                    <Badge tone="success">Bulk Import</Badge>
+                  </Box>
+                  <Text variant="headingMd" as="h3">
+                    Bulk SKU Import
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    Import multiple SKUs at once with their corresponding discount percentages. Save time when creating large-scale promotions.
+                  </Text>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="400">
+                  <Box>
+                    <Badge tone="success">Live Preview</Badge>
+                  </Box>
+                  <Text variant="headingMd" as="h3">
+                    Real-time Preview
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    See exactly which products will be affected by your discount before saving. Avoid mistakes with instant visual feedback.
+                  </Text>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        </BlockStack>
+
+        {/* How It Works */}
+        <Card>
+          <BlockStack gap="400">
+            <Text variant="headingLg" as="h2">
+              How It Works
+            </Text>
+            <Divider />
+            <BlockStack gap="400">
+              {[
+                { step: 1, title: "Create Discount", description: "Click 'Create New Discount' to open Shopify's discount creation page" },
+                { step: 2, title: "Configure SKUs", description: "Enter SKU codes and set discount percentages for each" },
+                { step: 3, title: "Set Parameters", description: "Choose date range, usage limits, and other discount settings" },
+                { step: 4, title: "Preview & Save", description: "Review affected products and save your discount" },
+                { step: 5, title: "Go Live", description: "Your SKU-based discount is now active in your store!" }
+              ].map((item) => (
+                <InlineStack key={item.step} gap="400" blockAlign="start">
+                  <Box minWidth="40px">
+                    <Badge tone="info">{item.step.toString()}</Badge>
+                  </Box>
+                  <BlockStack gap="200">
+                    <Text variant="headingSm" as="h4">
+                      {item.title}
+                    </Text>
+                    <Text variant="bodyMd" as="p" tone="subdued">
+                      {item.description}
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
+              ))}
+            </BlockStack>
+          </BlockStack>
+        </Card>
+
+        {/* Support Section */}
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h3">
+                  Need Help?
+                </Text>
+                <Text variant="bodyMd" as="p">
+                  Check out our documentation for detailed guides and best practices for creating SKU-based discounts.
+                </Text>
+                <InlineStack gap="400">
+                  <Button
+                    variant="secondary"
+                    onClick={() => window.open('https://help.shopify.com/en/manual/discounts', '_blank')}
+                  >
+                    View Documentation
+                  </Button>
+                  <Button
+                    variant="plain"
+                    onClick={() => window.open('mailto:support@example.com', '_blank')}
+                  >
+                    Contact Support
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </BlockStack>
+    </Page>
   );
 }
 

@@ -69,13 +69,24 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
+  
+  // Handle the case where loaderData might be a Response
+  if (!loaderData || typeof loaderData !== 'object' || !('apiKey' in loaderData)) {
+    return null; // This shouldn't happen in normal flow
+  }
 
   return (
-    <AppProvider isEmbeddedApp apiKey={apiKey}>
+    <AppProvider isEmbeddedApp apiKey={loaderData.apiKey as string}>
       <NavMenu>
         <Link to="/app" rel="home">
           Home
+        </Link>
+        <Link to="/app/discounts">
+          Discounts
+        </Link>
+        <Link to="/app/settings">
+          Settings
         </Link>
       </NavMenu>
       <Outlet />
