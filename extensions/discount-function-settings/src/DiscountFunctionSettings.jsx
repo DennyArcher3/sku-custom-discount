@@ -1025,7 +1025,7 @@ You can also use comma: SKU123,10.00`}
                                 ) : (
                                   <>
                                     <Text variant="bodySm" tone="subdued" fontWeight="semiBold" alignment="center">
-                                      ${(parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
+                                      ${Math.max(0, parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
                                     </Text>
                                     <Text variant="bodySm" tone="critical" alignment="center">
                                       -${parseFloat(product.value).toFixed(2)}
