@@ -789,65 +789,62 @@ function App() {
 
           <Divider />
 
-          {/* Discount Type Selector */}
-          <Section>
-            <BlockStack gap="base">
-              <Text variant="headingMd" as="h2">
-                Default Discount Type
-              </Text>
-              <Select
-                label="Discount type for new products"
-                value={globalDiscountType}
-                onChange={(value) => setGlobalDiscountType(value)}
-                helpText="Choose whether discounts are applied as a percentage off or a fixed amount off the price"
-                options={[
-                  { value: 'percentage', label: 'Percentage off (%)' },
-                  { value: 'fixedAmount', label: 'Fixed amount off ($)' }
-                ]}
-              />
-            </BlockStack>
-          </Section>
-
-          <Divider />
-
           {/* Add Products Section */}
           <Section>
             <BlockStack gap="large">
               <Box>
-                <InlineStack gap="base">
-                  <Button 
-                    onClick={handleProductPicker} 
-                    variant="primary"
-                  >
-                    <InlineStack gap="base" blockAlignment="center">
-                      <Icon name="ProductsMajor" size="base" />
-                      <Text>Select Products</Text>
-                    </InlineStack>
-                  </Button>
-                  
-                  <Button 
-                    onClick={() => setShowBulkImport(!showBulkImport)} 
-                    variant="secondary"
-                  >
-                    <InlineStack gap="base" blockAlignment="center">
-                      <Icon name="ImportMinor" size="base" />
-                      <Text>Bulk Import</Text>
-                    </InlineStack>
-                  </Button>
-                  
-                  {totalProducts > 0 && (
+                <BlockStack gap="base">
+                  <InlineStack gap="base">
                     <Button 
-                      onClick={clearAll} 
-                      variant="plain"
-                      tone="critical"
+                      onClick={handleProductPicker} 
+                      variant="primary"
                     >
                       <InlineStack gap="base" blockAlignment="center">
-                        <Icon name="DeleteMinor" size="base" />
-                        <Text>Clear All</Text>
+                        <Icon name="ProductsMajor" size="base" />
+                        <Text>Select Products</Text>
                       </InlineStack>
                     </Button>
-                  )}
-                </InlineStack>
+                    
+                    <Button 
+                      onClick={() => setShowBulkImport(!showBulkImport)} 
+                      variant="secondary"
+                    >
+                      <InlineStack gap="base" blockAlignment="center">
+                        <Icon name="ImportMinor" size="base" />
+                        <Text>Bulk Import</Text>
+                      </InlineStack>
+                    </Button>
+                    
+                    {totalProducts > 0 && (
+                      <Button 
+                        onClick={clearAll} 
+                        variant="plain"
+                        tone="critical"
+                      >
+                        <InlineStack gap="base" blockAlignment="center">
+                          <Icon name="DeleteMinor" size="base" />
+                          <Text>Clear All</Text>
+                        </InlineStack>
+                      </Button>
+                    )}
+                  </InlineStack>
+                  
+                  {/* Compact default type selector */}
+                  <InlineStack gap="tight" blockAlignment="center">
+                    <Text variant="bodySm" tone="subdued">Default for new products:</Text>
+                    <Box maxInlineSize={150}>
+                      <Select
+                        label=""
+                        value={globalDiscountType}
+                        onChange={(value) => setGlobalDiscountType(value)}
+                        options={[
+                          { value: 'percentage', label: '% off' },
+                          { value: 'fixedAmount', label: '$ off' }
+                        ]}
+                      />
+                    </Box>
+                  </InlineStack>
+                </BlockStack>
               </Box>
 
               {/* Bulk Import */}
