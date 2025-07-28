@@ -833,7 +833,7 @@ function App() {
                   <Box paddingBlockStart="base">
                     <InlineStack gap="base" blockAlignment="center">
                       <Text variant="bodySm" tone="subdued">New products default:</Text>
-                      <InlineStack gap="tight">
+                      <InlineStack gap="base">
                         <Button
                           variant={globalDiscountType === 'percentage' ? 'primary' : 'secondary'}
                           size="slim"
