@@ -16,3 +16,8 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
     },
   });
 };
+
+// Add default export to prevent empty chunk warning
+export default function AuthCallback() {
+  return null;
+}

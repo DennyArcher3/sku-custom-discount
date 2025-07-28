@@ -18,3 +18,8 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
     return new Response("Session token authentication failed", { status: 500 });
   }
 };
+
+// Add default export to prevent empty chunk warning
+export default function AuthSessionToken() {
+  return null;
+}
