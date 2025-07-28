@@ -829,21 +829,28 @@ function App() {
                     )}
                   </InlineStack>
                   
-                  {/* Compact default type selector */}
-                  <InlineStack gap="tight" blockAlignment="center">
-                    <Text variant="bodySm" tone="subdued">Default for new products:</Text>
-                    <Box maxInlineSize={150}>
-                      <Select
-                        label=""
-                        value={globalDiscountType}
-                        onChange={(value) => setGlobalDiscountType(value)}
-                        options={[
-                          { value: 'percentage', label: '% off' },
-                          { value: 'fixedAmount', label: '$ off' }
-                        ]}
-                      />
-                    </Box>
-                  </InlineStack>
+                  {/* Compact default type selector with better alignment */}
+                  <Box paddingBlockStart="tight">
+                    <InlineStack gap="base" blockAlignment="center">
+                      <Text variant="bodySm" tone="subdued">Default for new products:</Text>
+                      <InlineStack gap="extraTight">
+                        <Button
+                          variant={globalDiscountType === 'percentage' ? 'primary' : 'secondary'}
+                          size="slim"
+                          onClick={() => setGlobalDiscountType('percentage')}
+                        >
+                          % off
+                        </Button>
+                        <Button
+                          variant={globalDiscountType === 'fixedAmount' ? 'primary' : 'secondary'}
+                          size="slim"
+                          onClick={() => setGlobalDiscountType('fixedAmount')}
+                        >
+                          $ off
+                        </Button>
+                      </InlineStack>
+                    </InlineStack>
+                  </Box>
                 </BlockStack>
               </Box>
 
@@ -1007,21 +1014,25 @@ You can also use comma: SKU123,10.00`}
                             />
                           </Box>
 
-                          {/* Savings - Fixed width */}
+                          {/* Savings/Final Price - Fixed width */}
                           <Box minInlineSize={80} maxInlineSize={80} inlineAlignment="center" paddingInlineStart="base">
                             {product.price && product.value > 0 ? (
-                              <Badge tone="critical">
-                                -${(() => {
-                                  const price = parseFloat(product.price);
-                                  const value = parseFloat(product.value);
-                                  if (product.discountType === 'percentage') {
-                                    return ((price * value) / 100).toFixed(2);
-                                  } else {
-                                    // Fixed amount - show the actual discount
-                                    return value.toFixed(2);
-                                  }
-                                })()}
-                              </Badge>
+                              <BlockStack gap="extraTight" inlineAlignment="center">
+                                {product.discountType === 'percentage' ? (
+                                  <Badge tone="critical">
+                                    -${((parseFloat(product.price) * parseFloat(product.value)) / 100).toFixed(2)}
+                                  </Badge>
+                                ) : (
+                                  <>
+                                    <Text variant="bodySm" tone="subdued" fontWeight="semiBold" alignment="center">
+                                      ${(parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
+                                    </Text>
+                                    <Text variant="bodySm" tone="critical" alignment="center">
+                                      -${parseFloat(product.value).toFixed(2)}
+                                    </Text>
+                                  </>
+                                )}
+                              </BlockStack>
                             ) : (
                               <Text variant="bodySm" tone="subdued" alignment="center">—</Text>
                             )}
