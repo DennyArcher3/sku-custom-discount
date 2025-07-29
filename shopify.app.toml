@@ -3,7 +3,7 @@
 client_id = "3122acfb32ed2de15a381bde53864f1f"
 name = "Sku Custom Discount"
 handle = "sku-custom-discount"
-application_url = "https://sku-custom-discount-production.eromage3.workers.dev"
+application_url = "https://exposure-ht-track-soil.trycloudflare.com"
 embedded = true
 
 [build]
@@ -11,7 +11,7 @@ automatically_update_urls_on_dev = false
 include_config_on_deploy = true
 
 [webhooks]
-api_version = "2025-07"
+api_version = "2025-10"
 
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
@@ -30,7 +30,7 @@ api_version = "2025-07"
 scopes = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
 
 [auth]
-redirect_urls = ["https://sku-custom-discount-production.eromage3.workers.dev/auth/callback", "https://sku-custom-discount-production.eromage3.workers.dev/auth/shopify/callback", "https://sku-custom-discount-production.eromage3.workers.dev/api/auth/callback"]
+redirect_urls = ["https://exposure-ht-track-soil.trycloudflare.com/auth/callback", "https://exposure-ht-track-soil.trycloudflare.com/auth/shopify/callback", "https://exposure-ht-track-soil.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

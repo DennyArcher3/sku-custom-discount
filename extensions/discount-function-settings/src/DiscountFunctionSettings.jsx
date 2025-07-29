@@ -1,99 +1,16 @@
-import {
-  reactExtension,
-  useApi,
-  BlockStack,
-  FunctionSettings,
-  Section,
-  Text,
-  TextField,
-  Form,
-  NumberField,
-  Box,
-  InlineStack,
-  Heading,
-  Button,
-  Icon,
-  Badge,
-  Banner,
-  TextArea,
-  Divider,
-  Image,
-  Select,
-} from "@shopify/ui-extensions-react/admin";
-import { useState, useEffect } from "react";
+import '@shopify/ui-extensions/preact';
+import { render } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 
-const TARGET = "admin.discount-details.function-settings.render";
 const METAFIELD_NAMESPACE = "$app:sku-custom-discount";
 const METAFIELD_KEY = "function-configuration";
 
-async function getMetafieldDefinition(adminApiQuery) {
-  const query = `#graphql
-    query GetMetafieldDefinition {
-      metafieldDefinitions(first: 1, ownerType: DISCOUNT, namespace: "${METAFIELD_NAMESPACE}", key: "${METAFIELD_KEY}") {
-        nodes {
-          id
-        }
-      }
-    }
-  `;
+// Register the extension
+export default async (api) => {
+  render(<App api={api} />, document.body);
+};
 
-  const result = await adminApiQuery(query);
-  return result?.data?.metafieldDefinitions?.nodes[0];
-}
-
-async function createMetafieldDefinition(adminApiQuery) {
-  const definition = {
-    access: {
-      admin: "MERCHANT_READ_WRITE",
-    },
-    key: METAFIELD_KEY,
-    name: "SKU Discount Configuration",
-    namespace: METAFIELD_NAMESPACE,
-    ownerType: "DISCOUNT",
-    type: "json",
-  };
-
-  const query = `#graphql
-    mutation CreateMetafieldDefinition($definition: MetafieldDefinitionInput!) {
-      metafieldDefinitionCreate(definition: $definition) {
-        createdDefinition {
-          id
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
-
-  const variables = { definition };
-  const result = await adminApiQuery(query, { variables });
-  
-  if (result?.data?.metafieldDefinitionCreate?.userErrors?.length > 0) {
-    console.error("Metafield creation errors:", result.data.metafieldDefinitionCreate.userErrors);
-  }
-
-  return result?.data?.metafieldDefinitionCreate?.createdDefinition;
-}
-
-export default reactExtension(TARGET, async (api) => {
-  try {
-    const existingDefinition = await getMetafieldDefinition(api.query);
-    if (!existingDefinition) {
-      const metafieldDefinition = await createMetafieldDefinition(api.query);
-      if (!metafieldDefinition) {
-        console.error("Failed to create metafield definition");
-      }
-    }
-  } catch (error) {
-    console.error("Error setting up metafield definition:", error);
-  }
-  return <App />;
-});
-
-function App() {
-  const api = useApi(TARGET);
+function App({ api }) {
   const {
     applyMetafieldChange,
     i18n,
@@ -108,9 +25,81 @@ function App() {
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [initialProducts, setInitialProducts] = useState({});
-  const [globalDiscountType, setGlobalDiscountType] = useState('percentage'); // Global discount type setting
+  const [globalDiscountType, setGlobalDiscountType] = useState('percentage');
 
-  // Load existing configuration and store settings
+  // Check and create metafield definition on mount
+  useEffect(() => {
+    if (query) {
+      checkAndCreateMetafieldDefinition();
+    }
+  }, [query]);
+
+  async function checkAndCreateMetafieldDefinition() {
+    try {
+      const existingDefinition = await getMetafieldDefinition(query);
+      if (!existingDefinition) {
+        const metafieldDefinition = await createMetafieldDefinition(query);
+        if (!metafieldDefinition) {
+          console.error("Failed to create metafield definition");
+        }
+      }
+    } catch (error) {
+      console.error("Error setting up metafield definition:", error);
+    }
+  }
+
+  async function getMetafieldDefinition(adminApiQuery) {
+    const queryString = `#graphql
+      query GetMetafieldDefinition {
+        metafieldDefinitions(first: 1, ownerType: DISCOUNT, namespace: "${METAFIELD_NAMESPACE}", key: "${METAFIELD_KEY}") {
+          nodes {
+            id
+          }
+        }
+      }
+    `;
+
+    const result = await adminApiQuery(queryString);
+    return result?.data?.metafieldDefinitions?.nodes[0];
+  }
+
+  async function createMetafieldDefinition(adminApiQuery) {
+    const definition = {
+      access: {
+        admin: "MERCHANT_READ_WRITE",
+      },
+      key: METAFIELD_KEY,
+      name: "SKU Discount Configuration",
+      namespace: METAFIELD_NAMESPACE,
+      ownerType: "DISCOUNT",
+      type: "json",
+    };
+
+    const queryString = `#graphql
+      mutation CreateMetafieldDefinition($definition: MetafieldDefinitionInput!) {
+        metafieldDefinitionCreate(definition: $definition) {
+          createdDefinition {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = { definition };
+    const result = await adminApiQuery(queryString, { variables });
+    
+    if (result?.data?.metafieldDefinitionCreate?.userErrors?.length > 0) {
+      console.error("Metafield creation errors:", result.data.metafieldDefinitionCreate.userErrors);
+    }
+
+    return result?.data?.metafieldDefinitionCreate?.createdDefinition;
+  }
+
+  // Load existing configuration
   useEffect(() => {
     const metafield = data?.metafields?.find(
       (metafield) => metafield.key === METAFIELD_KEY
@@ -120,9 +109,7 @@ function App() {
       try {
         const config = JSON.parse(metafield.value);
         if (config.sku_discounts) {
-          // Check if we have product details saved
           if (config.product_details) {
-            // Use saved product details
             const convertedProducts = {};
             Object.entries(config.product_details).forEach(([identifier, details]) => {
               const key = `saved_${identifier}`;
@@ -157,63 +144,69 @@ function App() {
             
             // Try to fetch product details for saved SKUs
             if (query && skusToSearch.length > 0) {
-            const searchQuery = skusToSearch.map(sku => `sku:"${sku}"`).join(' OR ');
-            const queryString = `
-              query searchProductsBySku($query: String!) {
-                products(first: 250, query: $query) {
-                  nodes {
-                    id
-                    title
-                    featuredImage {
-                      url
-                    }
-                    variants(first: 100) {
-                      nodes {
-                        id
-                        sku
-                        price
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-            
-            query(queryString, { variables: { query: searchQuery } })
-              .then(result => {
-                if (result?.data?.products?.nodes) {
-                  setProducts(prev => {
-                    const updated = { ...prev };
-                    
-                    result.data.products.nodes.forEach(product => {
-                      product.variants?.nodes?.forEach(variant => {
-                        if (variant.sku) {
-                          const key = `saved_${variant.sku}`;
-                          if (updated[key]) {
-                            updated[key] = {
-                              ...updated[key],
-                              id: product.id,
-                              title: product.title,
-                              image: product.featuredImage?.url || null,
-                              price: variant.price,
-                            };
-                          }
-                        }
-                      });
-                    });
-                    
-                    return updated;
-                  });
-                }
-              })
-              .catch(() => {});
+              fetchProductDetails(skusToSearch);
             }
           }
         }
       } catch (e) {
+        console.error("Error loading configuration:", e);
       }
     }
   }, [data?.metafields, query]);
+
+  async function fetchProductDetails(skusToSearch) {
+    const searchQuery = skusToSearch.map(sku => `sku:"${sku}"`).join(' OR ');
+    const queryString = `
+      query searchProductsBySku($query: String!) {
+        products(first: 250, query: $query) {
+          nodes {
+            id
+            title
+            featuredImage {
+              url
+            }
+            variants(first: 100) {
+              nodes {
+                id
+                sku
+                price
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    try {
+      const result = await query(queryString, { variables: { query: searchQuery } });
+      if (result?.data?.products?.nodes) {
+        setProducts(prev => {
+          const updated = { ...prev };
+          
+          result.data.products.nodes.forEach(product => {
+            product.variants?.nodes?.forEach(variant => {
+              if (variant.sku) {
+                const key = `saved_${variant.sku}`;
+                if (updated[key]) {
+                  updated[key] = {
+                    ...updated[key],
+                    id: product.id,
+                    title: product.title,
+                    image: product.featuredImage?.url || null,
+                    price: variant.price,
+                  };
+                }
+              }
+            });
+          });
+          
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching product details:", error);
+    }
+  }
 
   // Product picker handler
   const handleProductPicker = async () => {
@@ -230,15 +223,12 @@ function App() {
       });
       
       if (selected && selected.length > 0) {
-        
         const newProducts = {};
         const duplicateProducts = [];
         const variantIds = [];
         
         selected.forEach(item => {
-          // Check if this is a variant selection
           if (item.variants && item.variants.length > 0) {
-            // User selected specific variants
             item.variants.forEach(variant => {
               const key = `variant_${variant.id}`;
               variantIds.push(variant.id);
@@ -260,7 +250,6 @@ function App() {
               }
             });
           } else {
-            // User selected entire product (all variants)
             const key = `product_${item.id}`;
             if (!products[key]) {
               newProducts[key] = {
@@ -268,7 +257,7 @@ function App() {
                 productId: item.id,
                 title: item.title,
                 image: item.image?.url || null,
-                sku: '', // Will be fetched
+                sku: '',
                 price: item.priceRange?.minVariantPrice?.amount || null,
                 value: 0,
                 discountType: globalDiscountType,
@@ -279,98 +268,75 @@ function App() {
           }
         });
         
-        if (duplicateProducts.length > 0) {
-        }
-        
         if (Object.keys(newProducts).length > 0) {
-          setProducts(prev => {
-            const updatedProducts = { ...prev, ...newProducts };
-            
-            // Trigger metafield update
-            const formattedDiscounts = {};
-            Object.entries(updatedProducts).forEach(([k, product]) => {
-              const identifier = product.sku || product.title || k;
-              formattedDiscounts[identifier] = parseFloat(product.value) || 0;
-            });
-            
-            applyMetafieldChange({
-              type: "updateMetafield",
-              namespace: METAFIELD_NAMESPACE,
-              key: METAFIELD_KEY,
-              value: JSON.stringify({
-                discount_code: data?.discount?.code || "DISCOUNT",
-                sku_discounts: formattedDiscounts
-              }),
-              valueType: "json",
-            });
-            
-            return updatedProducts;
-          });
+          setProducts(prev => ({ ...prev, ...newProducts }));
         }
         
         // Fetch additional details for variants
         if (query && variantIds.length > 0) {
-          try {
-            const queryString = `
-              query getVariantDetails($ids: [ID!]!) {
-                nodes(ids: $ids) {
-                  ... on ProductVariant {
-                    id
-                    sku
-                    price
-                    displayName
-                    title
-                    image {
-                      url
-                    }
-                    product {
-                      id
-                      title
-                        featuredImage {
-                        url
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-            
-            const result = await query(queryString, {
-              variables: { ids: variantIds }
-            });
-            
-            if (result?.data?.nodes) {
-              setProducts(prev => {
-                const updated = { ...prev };
-                result.data.nodes.forEach(variant => {
-                  if (variant) {
-                    const key = `variant_${variant.id}`;
-                    if (updated[key]) {
-                      updated[key] = {
-                        ...updated[key],
-                        title: variant.displayName || variant.title || updated[key].title,
-                        image: variant.image?.url || variant.product?.featuredImage?.url || updated[key].image,
-                        sku: variant.sku || '',
-                        price: variant.price || updated[key].price,
-                      };
-                    }
-                  }
-                });
-                return updated;
-              });
-            }
-          } catch (queryError) {
-          }
+          fetchVariantDetails(variantIds);
         }
       }
     } catch (error) {
+      console.error("Error selecting products:", error);
     }
   };
+
+  async function fetchVariantDetails(variantIds) {
+    const queryString = `
+      query getVariantDetails($ids: [ID!]!) {
+        nodes(ids: $ids) {
+          ... on ProductVariant {
+            id
+            sku
+            price
+            displayName
+            title
+            image {
+              url
+            }
+            product {
+              id
+              title
+              featuredImage {
+                url
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    try {
+      const result = await query(queryString, { variables: { ids: variantIds } });
+      if (result?.data?.nodes) {
+        setProducts(prev => {
+          const updated = { ...prev };
+          result.data.nodes.forEach(variant => {
+            if (variant) {
+              const key = `variant_${variant.id}`;
+              if (updated[key]) {
+                updated[key] = {
+                  ...updated[key],
+                  title: variant.displayName || variant.title || updated[key].title,
+                  image: variant.image?.url || variant.product?.featuredImage?.url || updated[key].image,
+                  sku: variant.sku || '',
+                  price: variant.price || updated[key].price,
+                };
+              }
+            }
+          });
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching variant details:", error);
+    }
+  }
 
   // Process bulk import
   const processBulkImport = async () => {
     try {
-      // Clear any existing validation errors first
       setValidationErrors([]);
       
       const lines = bulkImportText.trim().split('\n');
@@ -378,12 +344,10 @@ function App() {
       const validSkus = [];
       const errors = [];
       
-      // Parse the input - expecting SKU and value columns (tab or comma separated)
       lines.forEach((line, index) => {
         const trimmed = line.trim();
         if (!trimmed) return;
         
-        // Support tab, comma, colon, and space separators
         const parts = trimmed.split(/[\t,:\s]+/).filter(p => p);
         
         if (parts.length < 2) {
@@ -392,7 +356,7 @@ function App() {
         }
         
         const sku = parts[0];
-        const value = parseFloat(parts[parts.length - 1]); // Take last part as value
+        const value = parseFloat(parts[parts.length - 1]);
         
         if (!sku) {
           errors.push(`Line ${index + 1}: Missing SKU`);
@@ -420,169 +384,108 @@ function App() {
       
       setValidationErrors([]);
       
-      // Try to fetch product details for these SKUs
-      if (query && validSkus.length > 0) {
-        try {
-          // Create a search query for products with these SKUs
-          // Split into chunks if too many SKUs to avoid query length limits
-          const chunkSize = 10;
-          const skuChunks = [];
-          for (let i = 0; i < validSkus.length; i += chunkSize) {
-            skuChunks.push(validSkus.slice(i, i + chunkSize));
-          }
-          
-          const allProducts = [];
-          
-          // Query each chunk separately
-          for (const chunk of skuChunks) {
-            const searchQuery = chunk.map(sku => `sku:"${sku}"`).join(' OR ');
-            const queryString = `
-              query searchProductsBySku($query: String!) {
-                products(first: 250, query: $query) {
+      // Process SKUs in chunks
+      const chunkSize = 10;
+      const skuChunks = [];
+      for (let i = 0; i < validSkus.length; i += chunkSize) {
+        skuChunks.push(validSkus.slice(i, i + chunkSize));
+      }
+      
+      const allProducts = [];
+      
+      for (const chunk of skuChunks) {
+        const searchQuery = chunk.map(sku => `sku:"${sku}"`).join(' OR ');
+        const queryString = `
+          query searchProductsBySku($query: String!) {
+            products(first: 250, query: $query) {
+              nodes {
+                id
+                title
+                featuredImage {
+                  url
+                }
+                variants(first: 100) {
                   nodes {
                     id
-                    title
-                    featuredImage {
-                      url
-                    }
-                    variants(first: 100) {
-                      nodes {
-                        id
-                        sku
-                        price
-                      }
-                    }
+                    sku
+                    price
                   }
                 }
               }
-            `;
-            
-            try {
-              const chunkResult = await query(queryString, {
-                variables: { query: searchQuery }
-              });
-              
-              if (chunkResult?.data?.products?.nodes) {
-                allProducts.push(...chunkResult.data.products.nodes);
-              }
-            } catch (chunkError) {
-              // Silently handle chunk errors
             }
           }
-          
-          // Process all found products
-          if (allProducts.length > 0) {
-            const newProducts = {};
-            const foundSkus = new Set();
-            
-            allProducts.forEach(product => {
-              product.variants?.nodes?.forEach(variant => {
-                if (variant.sku) {
-                  // Check if this SKU matches any of our validSkus (case-insensitive)
-                  const matchingSku = validSkus.find(validSku => 
-                    validSku.toLowerCase() === variant.sku.toLowerCase()
-                  );
-                  
-                  if (matchingSku && skuToValueMap[matchingSku] !== undefined) {
-                    // Check if this product already exists in the current products
-                    const existingProduct = Object.values(products).find(p => 
-                      p.sku && p.sku.toLowerCase() === variant.sku.toLowerCase()
-                    );
-                    
-                    if (!existingProduct) {
-                      const key = `sku_${matchingSku}`;
-                      newProducts[key] = {
-                        id: product.id,
-                        title: product.title,
-                        image: product.featuredImage?.url || null,
-                        sku: variant.sku,
-                        price: variant.price,
-                        value: skuToValueMap[matchingSku],
-                        discountType: globalDiscountType,
-                      };
-                    }
-                    foundSkus.add(matchingSku);
-                  }
-                }
-              });
-            });
-            
-            // Check which SKUs were not found or already exist
-            const notFoundSkus = validSkus.filter(sku => !foundSkus.has(sku));
-            const alreadyExistingSkus = validSkus.filter(sku => {
-              return foundSkus.has(sku) && Object.values(products).some(p => 
-                p.sku && p.sku.toLowerCase() === sku.toLowerCase()
-              );
-            });
-            
-            if (Object.keys(newProducts).length > 0) {
-              setProducts(prev => {
-                const updatedProducts = { ...prev, ...newProducts };
-                
-                // Trigger metafield update
-                const formattedDiscounts = {};
-                Object.entries(updatedProducts).forEach(([k, product]) => {
-                  const identifier = product.sku || product.title || k;
-                  formattedDiscounts[identifier] = parseFloat(product.value) || 0;
-                });
-                
-                applyMetafieldChange({
-                  type: "updateMetafield",
-                  namespace: METAFIELD_NAMESPACE,
-                  key: METAFIELD_KEY,
-                  value: JSON.stringify({
-                    discount_code: data?.discount?.code || "DISCOUNT",
-                    sku_discounts: formattedDiscounts
-                  }),
-                  valueType: "json",
-                });
-                
-                return updatedProducts;
-              });
-              
-              setBulkImportText("");
-              setShowBulkImport(false);
-              
-              // Show warnings for various cases
-              const warnings = [];
-              if (notFoundSkus.length > 0) {
-                warnings.push(`SKUs not found: ${notFoundSkus.join(', ')}`);
-              }
-              if (alreadyExistingSkus.length > 0) {
-                warnings.push(`SKUs already in list: ${alreadyExistingSkus.join(', ')}`);
-              }
-              
-              if (warnings.length > 0) {
-                setValidationErrors(warnings);
-                // Clear the warning after 5 seconds
-                setTimeout(() => setValidationErrors([]), 5000);
-              }
-            }
-          } else if (notFoundSkus.length > 0) {
-            // All SKUs were not found
-            setValidationErrors([`None of the SKUs were found in your store: ${notFoundSkus.join(', ')}`]);
-          } else if (alreadyExistingSkus.length === validSkus.length) {
-            // All SKUs already exist
-            setValidationErrors([`All SKUs are already in the product list`]);
-            setTimeout(() => setValidationErrors([]), 3000);
+        `;
+        
+        try {
+          const chunkResult = await query(queryString, { variables: { query: searchQuery } });
+          if (chunkResult?.data?.products?.nodes) {
+            allProducts.push(...chunkResult.data.products.nodes);
           }
-        } catch (queryError) {
-          setValidationErrors(['Failed to search for products. Please try again or ensure the SKUs exist in your store.']);
+        } catch (chunkError) {
+          console.error("Error fetching chunk:", chunkError);
         }
-      } else {
-        // No query API available
-        setValidationErrors(['Unable to verify SKUs. Please ensure the products exist in your store.']);
+      }
+      
+      // Process found products
+      if (allProducts.length > 0) {
+        const newProducts = {};
+        const foundSkus = new Set();
+        
+        allProducts.forEach(product => {
+          product.variants?.nodes?.forEach(variant => {
+            if (variant.sku) {
+              const matchingSku = validSkus.find(validSku => 
+                validSku.toLowerCase() === variant.sku.toLowerCase()
+              );
+              
+              if (matchingSku && skuToValueMap[matchingSku] !== undefined) {
+                const existingProduct = Object.values(products).find(p => 
+                  p.sku && p.sku.toLowerCase() === variant.sku.toLowerCase()
+                );
+                
+                if (!existingProduct) {
+                  const key = `sku_${matchingSku}`;
+                  newProducts[key] = {
+                    id: product.id,
+                    title: product.title,
+                    image: product.featuredImage?.url || null,
+                    sku: variant.sku,
+                    price: variant.price,
+                    value: skuToValueMap[matchingSku],
+                    discountType: globalDiscountType,
+                  };
+                }
+                foundSkus.add(matchingSku);
+              }
+            }
+          });
+        });
+        
+        const notFoundSkus = validSkus.filter(sku => !foundSkus.has(sku));
+        
+        if (Object.keys(newProducts).length > 0) {
+          setProducts(prev => ({ ...prev, ...newProducts }));
+          setBulkImportText("");
+          setShowBulkImport(false);
+          
+          if (notFoundSkus.length > 0) {
+            setValidationErrors([`SKUs not found: ${notFoundSkus.join(', ')}`]);
+            setTimeout(() => setValidationErrors([]), 5000);
+          }
+        } else if (notFoundSkus.length > 0) {
+          setValidationErrors([`None of the SKUs were found in your store: ${notFoundSkus.join(', ')}`]);
+        }
       }
     } catch (e) {
+      console.error("Error processing bulk import:", e);
+      setValidationErrors(['Failed to process bulk import']);
     }
   };
 
   // Update product discount
   const updateProductValue = (key, value) => {
-    // Clean the input value - remove any non-numeric characters except decimal point
     const cleanValue = value.replace(/[^0-9.]/g, '');
     
-    // Handle empty or invalid input
     if (cleanValue === '' || cleanValue === '.') {
       setProducts(prev => ({
         ...prev,
@@ -596,7 +499,6 @@ function App() {
     
     const numValue = parseFloat(cleanValue);
     
-    // Enforce limits
     if (!isNaN(numValue)) {
       const limitedValue = Math.min(Math.max(numValue, 0), 100);
       setProducts(prev => ({
@@ -623,26 +525,25 @@ function App() {
     setProducts({});
   };
 
-
   // Save configuration
-  async function saveMetafieldChanges() {
+  async function saveMetafieldChanges(event) {
+    if (event) {
+      event.preventDefault();
+    }
+    
     try {
-      // Convert to the format expected by the Rust function
       const formattedDiscounts = {};
       const productDetails = {};
       
       Object.entries(products).forEach(([key, product]) => {
-        // Use SKU if available, otherwise use title
         const identifier = product.sku || product.title || key;
         
-        // Format discount based on type for Rust function
         formattedDiscounts[identifier] = {
           discount_type: product.discountType || 'percentage',
           value: parseFloat(product.value) || 0,
           applies_to_each_item: product.discountType === 'fixedAmount' ? true : undefined
         };
         
-        // Save product details
         productDetails[identifier] = {
           title: product.title,
           sku: product.sku,
@@ -662,49 +563,45 @@ function App() {
         product_details: productDetails
       };
       
-      await applyMetafieldChange({
-        type: "updateMetafield",
-        namespace: METAFIELD_NAMESPACE,
-        key: METAFIELD_KEY,
-        value: JSON.stringify(newConfig),
-        valueType: "json",
-      });
+      // Use waitUntil if available
+      if (event && event.waitUntil) {
+        await event.waitUntil(
+          applyMetafieldChange({
+            type: "updateMetafield",
+            namespace: METAFIELD_NAMESPACE,
+            key: METAFIELD_KEY,
+            value: JSON.stringify(newConfig),
+            valueType: "json",
+          })
+        );
+      } else {
+        await applyMetafieldChange({
+          type: "updateMetafield",
+          namespace: METAFIELD_NAMESPACE,
+          key: METAFIELD_KEY,
+          value: JSON.stringify(newConfig),
+          valueType: "json",
+        });
+      }
       
-      // Update initial products for reset functionality
       setInitialProducts(products);
+      // Show success message using banner or other UI element
+      setValidationErrors(['Configuration saved successfully']);
+      setTimeout(() => setValidationErrors([]), 3000);
     } catch (error) {
       console.error("Error saving metafield:", error);
       
-      // Check if this is the permission error
       if (error?.message?.includes("Access to this namespace and key on Metafields") || 
           error?.toString()?.includes("not allowed")) {
-        // Show a user-friendly error message
         setValidationErrors([
           "⚠️ Shopify Platform Issue: Unable to save configuration due to metafield permissions. This is a known Shopify bug. Workaround: Save the discount without products first, then edit to add products."
         ]);
-        
-        // Keep the error visible longer
         setTimeout(() => setValidationErrors([]), 10000);
-        
-        // Still update the local state so the UI reflects the changes
-        setInitialProducts(products);
-        
-        // Return false to indicate save failed
-        return false;
       } else {
-        // Other errors
         setValidationErrors(["Failed to save configuration. Please try again."]);
         setTimeout(() => setValidationErrors([]), 5000);
-        throw error;
       }
     }
-  }
-
-  const productEntries = Object.entries(products);
-  const totalProducts = productEntries.length;
-
-  if (loading) {
-    return <Text>{i18n.translate("loading")}</Text>;
   }
 
   // Reset form to initial state
@@ -715,165 +612,135 @@ function App() {
     setValidationErrors([]);
   };
 
-  // Create a serialized string of products for the hidden field
-  const sortedEntries = Object.entries(products).sort(([a], [b]) => a.localeCompare(b));
-  const serializedProducts = sortedEntries
-    .map(([key, product]) => `${product.sku || key}:${product.value}`)
-    .join('|');
-    
-  // Create initial serialized string for defaultValue
-  const initialSortedEntries = Object.entries(initialProducts).sort(([a], [b]) => a.localeCompare(b));
-  const initialSerializedProducts = initialSortedEntries
-    .map(([key, product]) => `${product.sku || key}:${product.value}`)
-    .join('|');
+  const productEntries = Object.entries(products);
+  const totalProducts = productEntries.length;
 
-  // Check if we have the Shopify platform error
+  if (loading) {
+    return (
+      <s-admin-block title="Loading...">
+        <s-spinner />
+        <s-text>{i18n?.translate("loading") || "Loading..."}</s-text>
+      </s-admin-block>
+    );
+  }
+
   const hasShopifyPlatformError = validationErrors.some(error => 
     error.includes("Shopify Platform Issue")
   );
 
   return (
-    <FunctionSettings onSave={saveMetafieldChanges}>
-      <Form onSubmit={saveMetafieldChanges} onReset={resetForm}>
-        <BlockStack gap="large">
-          {/* Hidden field for dirty state detection */}
-          <Box display="none">
-            <TextField
-              label=""
-              name="serializedProducts"
-              value={serializedProducts}
-              defaultValue={initialSerializedProducts}
-              onChange={() => {}}
-            />
-          </Box>
-          
-          {/* Show detailed banner for Shopify platform error */}
+    <s-admin-block title="Product SKU Discount Manager">
+      <s-form 
+        onsubmit={saveMetafieldChanges}
+        onreset={resetForm}
+      >
+        <s-stack gap="large">
+          {/* Platform error banner */}
           {hasShopifyPlatformError && (
-            <Banner tone="critical">
-              <BlockStack gap="base">
-                <Text fontWeight="bold">Known Shopify Platform Issue</Text>
-                <Text>Due to a Shopify bug with discount metafields, the configuration cannot be saved directly.</Text>
-                <Text fontWeight="semiBold">Workaround:</Text>
-                <BlockStack gap="extraTight">
-                  <Text>1. Save this discount without any products</Text>
-                  <Text>2. After saving, edit the discount again</Text>
-                  <Text>3. Add your products and save (it usually works on the second attempt)</Text>
-                </BlockStack>
-                <Text variant="bodySm" tone="subdued">
-                  This is a temporary Shopify platform limitation that affects all discount apps using the merchant configuration.
-                </Text>
-              </BlockStack>
-            </Banner>
+            <s-banner tone="critical">
+              <s-stack gap="base">
+                <s-text variant="bodyMd" font-weight="bold">Known Shopify Platform Issue</s-text>
+                <s-text>Due to a Shopify bug with discount metafields, the configuration cannot be saved directly.</s-text>
+                <s-text variant="bodyMd" font-weight="semibold">Workaround:</s-text>
+                <s-stack gap="small-100">
+                  <s-text>1. Save this discount without any products</s-text>
+                  <s-text>2. After saving, edit the discount again</s-text>
+                  <s-text>3. Add your products and save (it usually works on the second attempt)</s-text>
+                </s-stack>
+              </s-stack>
+            </s-banner>
           )}
           
           {/* Header */}
-          <Section>
-            <BlockStack gap="base">
-              <Heading size={3}>Product SKU Discount Manager</Heading>
-              <InlineStack gap="base" blockAlignment="center">
+          <s-section>
+            <s-stack gap="base">
+              <s-heading level={3}>Product SKU Discount Manager</s-heading>
+              <s-inline-stack gap="base" align="center">
                 {totalProducts > 0 && (
-                  <Badge tone="success">{totalProducts} products configured</Badge>
+                  <s-badge tone="success">{totalProducts} products configured</s-badge>
                 )}
                 {validationErrors.length > 0 && validationErrors.map((error, index) => {
-                  // Determine badge tone based on message content
                   let tone = "warning";
                   if (error.includes("not found")) tone = "warning";
-                  else if (error.includes("already in list") || error.includes("All SKUs are already")) tone = "info";
-                  else if (error.includes("Failed") || error.includes("None of the SKUs") || error.includes("Shopify Platform Issue")) tone = "critical";
+                  else if (error.includes("already in list")) tone = "info";
+                  else if (error.includes("Failed") || error.includes("Shopify Platform Issue")) tone = "critical";
+                  else if (error.includes("saved successfully")) tone = "success";
                   
-                  return <Badge key={index} tone={tone}>{error}</Badge>;
+                  return <s-badge key={index} tone={tone}>{error}</s-badge>;
                 })}
-              </InlineStack>
-            </BlockStack>
-          </Section>
+              </s-inline-stack>
+            </s-stack>
+          </s-section>
 
-          <Divider />
+          <s-divider />
 
           {/* Add Products Section */}
-          <Section>
-            <BlockStack gap="large">
-              <Box>
-                <BlockStack gap="base">
-                  <InlineStack gap="base" wrap={true}>
-                    <Button 
-                      onClick={handleProductPicker} 
-                      variant="primary"
-                    >
-                      <InlineStack gap="tight" blockAlignment="center" wrap={false}>
-                        <Icon name="ProductsMajor" size="base" />
-                        <Text>Select Products</Text>
-                      </InlineStack>
-                    </Button>
+          <s-section>
+            <s-stack gap="large">
+              <s-box>
+                <s-inline-stack gap="base" align="center" inlineAlignment="spaceBetween">
+                  <s-inline-stack gap="base" wrap={false}>
+                    <s-button onclick={handleProductPicker} variant="primary">
+                      <s-inline-stack gap="small-100" align="center" wrap={false}>
+                        <s-icon source="ProductsMajor" />
+                        <s-text>Select Products</s-text>
+                      </s-inline-stack>
+                    </s-button>
                     
-                    <Button 
-                      onClick={() => setShowBulkImport(!showBulkImport)} 
-                      variant="secondary"
-                    >
-                      <InlineStack gap="tight" blockAlignment="center" wrap={false}>
-                        <Icon name="ImportMinor" size="base" />
-                        <Text>Bulk Import</Text>
-                      </InlineStack>
-                    </Button>
-                    
-                    {totalProducts > 0 && (
-                      <Button 
-                        onClick={clearAll} 
-                        variant="plain"
-                        tone="critical"
-                      >
-                        <InlineStack gap="tight" blockAlignment="center" wrap={false}>
-                          <Icon name="DeleteMinor" size="base" />
-                          <Text>Clear All</Text>
-                        </InlineStack>
-                      </Button>
-                    )}
-                  </InlineStack>
+                    <s-button onclick={() => setShowBulkImport(!showBulkImport)} variant="secondary">
+                      <s-inline-stack gap="small-100" align="center" wrap={false}>
+                        <s-icon source="ImportMinor" />
+                        <s-text>Bulk Import</s-text>
+                      </s-inline-stack>
+                    </s-button>
+                  </s-inline-stack>
                   
-                  {/* Compact default type selector with better alignment */}
-                  <Box paddingBlockStart="base">
-                    <InlineStack gap="base" blockAlignment="center">
-                      <Text variant="bodySm" tone="subdued">New products default:</Text>
-                      <InlineStack gap="base">
-                        <Button
+                  <s-inline-stack gap="large" align="center">
+                    <s-inline-stack gap="base" align="center">
+                      <s-text variant="bodySm" tone="subdued">Default:</s-text>
+                      <s-inline-stack gap="base">
+                        <s-button
                           variant={globalDiscountType === 'percentage' ? 'primary' : 'secondary'}
                           size="slim"
-                          onClick={() => setGlobalDiscountType('percentage')}
+                          onclick={() => setGlobalDiscountType('percentage')}
                         >
                           % off
-                        </Button>
-                        <Button
+                        </s-button>
+                        <s-button
                           variant={globalDiscountType === 'fixedAmount' ? 'primary' : 'secondary'}
                           size="slim"
-                          onClick={() => setGlobalDiscountType('fixedAmount')}
+                          onclick={() => setGlobalDiscountType('fixedAmount')}
                         >
                           $ off
-                        </Button>
-                      </InlineStack>
-                    </InlineStack>
-                  </Box>
-                </BlockStack>
-              </Box>
+                        </s-button>
+                      </s-inline-stack>
+                    </s-inline-stack>
+                  </s-inline-stack>
+                </s-inline-stack>
+              </s-box>
 
               {/* Bulk Import */}
               {showBulkImport && (
-                <Box padding="base" border="base" borderRadius="base">
-                  <BlockStack gap="base">
-                    <Text variant="bodySm">
+                <s-box padding="base" background="subdued" border="border" border-width="1" border-radius="base">
+                  <s-stack gap="base">
+                    <s-text variant="bodySm">
                       Copy from Excel: First column SKU, second column discount value ({globalDiscountType === 'percentage' ? 'percentage' : 'dollar amount'})
-                    </Text>
-                    <TextArea
+                    </s-text>
+                    <s-text-area
                       label=""
                       value={bulkImportText}
-                      onChange={setBulkImportText}
-                      minRows={6}
-                      placeholder={globalDiscountType === 'percentage' ? `SKU123	35
+                      onchange={(e) => setBulkImportText(e.target.value)}
+                      rows={6}
+                      placeholder={globalDiscountType === 'percentage' ? 
+`SKU123	35
 SKU456	40
 SKU789	50
 ABC-001	25
 XYZ-002	15
 
 Note: Excel copy uses tab separator automatically. 
-You can also use comma: SKU123,35` : `SKU123	10.00
+You can also use comma: SKU123,35` : 
+`SKU123	10.00
 SKU456	15.50
 SKU789	5.00
 ABC-001	20.00
@@ -882,185 +749,218 @@ XYZ-002	7.99
 Note: Excel copy uses tab separator automatically. 
 You can also use comma: SKU123,10.00`}
                     />
-                    <InlineStack gap="base">
-                      <Button 
-                        onClick={processBulkImport} 
+                    <s-inline-stack gap="base">
+                      <s-button 
+                        onclick={processBulkImport} 
                         variant="primary"
                         disabled={!bulkImportText.trim()}
                       >
                         Import
-                      </Button>
-                      <Button 
-                        onClick={() => {
+                      </s-button>
+                      <s-button 
+                        onclick={() => {
                           setShowBulkImport(false);
                           setValidationErrors([]);
                         }} 
                         variant="plain"
                       >
                         Cancel
-                      </Button>
-                    </InlineStack>
-                  </BlockStack>
-                </Box>
+                      </s-button>
+                    </s-inline-stack>
+                  </s-stack>
+                </s-box>
               )}
-            </BlockStack>
-          </Section>
+            </s-stack>
+          </s-section>
 
-          <Divider />
+          <s-divider />
 
           {/* Product List */}
-          <Section>
-            <BlockStack gap="base">
-              <Text fontWeight="semiBold">Product List</Text>
+          <s-section>
+            <s-stack gap="base">
+              <s-box>
+                <s-inline-stack align="center" wrap={false}>
+                  <s-box min-inline-size="fill">
+                    <s-text variant="bodyMd" font-weight="semibold">Product List</s-text>
+                  </s-box>
+                  {totalProducts > 0 && (
+                    <s-button 
+                      onclick={clearAll} 
+                      variant="plain"
+                      tone="critical"
+                    >
+                      <s-inline-stack gap="small-100" align="center" wrap={false}>
+                        <s-icon source="DeleteMinor" />
+                        <s-text>Clear All</s-text>
+                      </s-inline-stack>
+                    </s-button>
+                  )}
+                </s-inline-stack>
+              </s-box>
               
               {productEntries.length === 0 ? (
-                <Banner>
-                  <Text>No products added yet. Use "Select Products" or "Bulk Import" buttons.</Text>
-                </Banner>
+                <s-banner>
+                  <s-text>No products added yet. Use "Select Products" or "Bulk Import" buttons.</s-text>
+                </s-banner>
               ) : (
-                <Box border="base" borderRadius="base">
-                  <BlockStack gap="none">
+                <s-box background="subdued" border="border" border-width="1" border-radius="base">
+                  <s-stack gap="small">
                     {productEntries.map(([key, product], index) => (
-                      <Box
+                      <s-box
                         key={key}
                         padding="base"
-                        borderBlockEnd={index < productEntries.length - 1 ? "base" : undefined}
+                        border-block-end={index < productEntries.length - 1 ? "divider" : undefined}
                       >
-                        <BlockStack gap="base">
-                          <InlineStack gap="base" blockAlignment="center" wrap={true}>
+                        <s-inline-stack gap="base" align="start" wrap={false}>
                           {/* Product Image */}
-                          <Box 
-                            minInlineSize={36} 
-                            minBlockSize={36}
+                          <s-box 
+                            min-inline-size="64" 
+                            min-block-size="64"
+                            max-inline-size="64"
+                            max-block-size="64"
                             background="subdued"
-                            borderRadius="base"
-                            inlineAlignment="center"
-                            blockAlignment="center"
+                            border-radius="base"
+                            inline-alignment="center"
+                            block-alignment="center"
                             overflow="hidden"
                           >
                             {product.image ? (
-                              <Image 
+                              <s-image 
                                 source={product.image} 
                                 alt={product.title}
-                                style={{ 
-                                  width: '100%', 
-                                  height: '100%', 
-                                  objectFit: 'cover' 
-                                }}
                               />
                             ) : (
-                              <Icon name="ProductsMajor" size="base" />
+                              <s-icon source="ProductsMajor" size="large" />
                             )}
-                          </Box>
+                          </s-box>
+                          
+                          {/* Product details and controls */}
+                          <s-box min-inline-size="fill">
+                            <s-stack gap="small-100">
+                              {/* Product title and SKU */}
+                              <s-text variant="bodySm" font-weight="semibold">
+                                {(() => {
+                                  let displayTitle = product.title || '';
+                                  displayTitle = displayTitle
+                                    .replace(/ - Default Title$/i, '')
+                                    .replace(/ - Default$/i, '')
+                                    .replace(/ - Title$/i, '');
+                                  
+                                  if (product.sku) {
+                                    return `${displayTitle} • SKU: ${product.sku}`;
+                                  }
+                                  return displayTitle;
+                                })()}
+                              </s-text>
+                              
+                              {/* Controls row */}
+                              <s-inline-stack gap="small-100" align="center" wrap={false} inlineAlignment="start">
+                                {/* Price */}
+                                <s-box min-inline-size="60">
+                                  {product.price ? (
+                                    <s-badge tone="info">
+                                      ${parseFloat(product.price).toFixed(0)}
+                                    </s-badge>
+                                  ) : (
+                                    <s-text variant="bodySm" tone="subdued">—</s-text>
+                                  )}
+                                </s-box>
 
-                          {/* Product Title - Flexible */}
-                          <Box minInlineSize="fill">
-                            <BlockStack gap="extraTight">
-                              <Text fontWeight="semiBold" truncate={1}>
-                                {product.title.split(' - ')[0]}
-                              </Text>
-                              {product.sku && (
-                                <Text variant="bodySm" fontWeight="bold" tone="subdued">
-                                  {product.sku}
-                                </Text>
-                              )}
-                            </BlockStack>
-                          </Box>
+                                {/* Type selector */}
+                                <s-box min-inline-size="50">
+                                  <s-select
+                                    label=""
+                                    value={product.discountType || 'percentage'}
+                                    onchange={(e) => {
+                                      setProducts(prev => ({
+                                        ...prev,
+                                        [key]: { ...prev[key], discountType: e.target.value }
+                                      }));
+                                    }}
+                                    options={[
+                                      { label: '%', value: 'percentage' },
+                                      { label: '$', value: 'fixedAmount' }
+                                    ]}
+                                  />
+                                </s-box>
 
-                          {/* Price - Fixed width */}
-                          <Box minInlineSize={70} maxInlineSize={70} inlineAlignment="end">
-                            {product.price ? (
-                              <Badge tone="info">
-                                <Text variant="bodyMd" fontWeight="bold">
-                                  ${parseFloat(product.price).toFixed(0)}
-                                </Text>
-                              </Badge>
-                            ) : (
-                              <Text variant="bodySm" tone="subdued">—</Text>
-                            )}
-                          </Box>
+                                {/* Value input */}
+                                <s-box min-inline-size="85">
+                                  <s-text-field
+                                    label=""
+                                    type="number"
+                                    value={product.value?.toString() || "0"}
+                                    onchange={(e) => updateProductValue(key, e.target.value)}
+                                    prefix={product.discountType === 'fixedAmount' ? "$" : undefined}
+                                    suffix={product.discountType === 'percentage' ? "%" : undefined}
+                                    min="0"
+                                    max={product.discountType === 'percentage' ? "100" : undefined}
+                                    step={product.discountType === 'fixedAmount' ? "0.01" : "1"}
+                                  />
+                                </s-box>
 
-                          {/* Discount Type Selector - Fixed width */}
-                          <Box minInlineSize={110} maxInlineSize={110}>
-                            <Select
-                              label=""
-                              value={product.discountType || 'percentage'}
-                              onChange={(value) => {
-                                setProducts(prev => ({
-                                  ...prev,
-                                  [key]: { ...prev[key], discountType: value }
-                                }));
-                              }}
-                              options={[
-                                { value: 'percentage', label: '%' },
-                                { value: 'fixedAmount', label: '$' }
-                              ]}
-                            />
-                          </Box>
+                                {/* Result */}
+                                <s-box min-inline-size="70" inline-alignment="center">
+                                  {product.price && product.value > 0 ? (
+                                    product.discountType === 'percentage' ? (
+                                      <s-badge tone="critical">
+                                        -${((parseFloat(product.price) * parseFloat(product.value)) / 100).toFixed(2)}
+                                      </s-badge>
+                                    ) : (
+                                      <s-badge tone="success">
+                                        ${Math.max(0, parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
+                                      </s-badge>
+                                    )
+                                  ) : (
+                                    <s-text variant="bodySm" tone="subdued">—</s-text>
+                                  )}
+                                </s-box>
 
-                          {/* Discount Input - Fixed width */}
-                          <Box minInlineSize={100} maxInlineSize={100}>
-                            <NumberField
-                              label=""
-                              value={product.value?.toString() || "0"}
-                              onChange={(value) => updateProductValue(key, value)}
-                              prefix={product.discountType === 'fixedAmount' ? "$" : undefined}
-                              suffix={product.discountType === 'percentage' ? "%" : undefined}
-                              min={0}
-                              max={product.discountType === 'percentage' ? 100 : undefined}
-                              placeholder="0"
-                              step={product.discountType === 'fixedAmount' ? 0.01 : 1}
-                            />
-                          </Box>
-
-                          {/* Savings/Final Price - Fixed width */}
-                          <Box minInlineSize={80} maxInlineSize={80} inlineAlignment="center" paddingInlineStart="base">
-                            {product.price && product.value > 0 ? (
-                              product.discountType === 'percentage' ? (
-                                <Badge tone="critical">
-                                  -${((parseFloat(product.price) * parseFloat(product.value)) / 100).toFixed(2)}
-                                </Badge>
-                              ) : (
-                                <Badge tone="success">
-                                  ${Math.max(0, parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
-                                </Badge>
-                              )
-                            ) : (
-                              <Text variant="bodySm" tone="subdued" alignment="center">—</Text>
-                            )}
-                          </Box>
-
-                          {/* Remove Button - Fixed */}
-                          <Button
-                            variant="plain"
-                            tone="critical"
-                            onClick={() => removeProduct(key)}
-                            size="slim"
-                          >
-                            <Icon name="CancelMinor" />
-                          </Button>
-                          </InlineStack>
-                          </BlockStack>
-                      </Box>
+                                {/* Remove */}
+                                <s-button
+                                  variant="plain"
+                                  tone="critical"
+                                  onclick={() => removeProduct(key)}
+                                  size="slim"
+                                >
+                                  <s-icon source="CancelMinor" />
+                                </s-button>
+                              </s-inline-stack>
+                            </s-stack>
+                          </s-box>
+                        </s-inline-stack>
+                      </s-box>
                     ))}
-                  </BlockStack>
-                </Box>
+                  </s-stack>
+                </s-box>
               )}
-            </BlockStack>
-          </Section>
+            </s-stack>
+          </s-section>
 
-          <Box padding="base">
-            <BlockStack gap="tight">
-              <Text tone="subdued" variant="bodySm">
+          <s-box padding="base">
+            <s-stack gap="small-100">
+              <s-text tone="subdued" variant="bodySm">
                 Note: Discounts are applied based on SKU when available, otherwise product title.
-              </Text>
-              <Text tone="subdued" variant="bodySm">
+              </s-text>
+              <s-text tone="subdued" variant="bodySm">
                 For best experience on mobile devices, use the Shopify mobile app.
-              </Text>
-            </BlockStack>
-          </Box>
-        </BlockStack>
-      </Form>
-    </FunctionSettings>
+              </s-text>
+            </s-stack>
+          </s-box>
+          
+          {/* Form Actions */}
+          <s-inline-stack gap="base">
+            <s-button type="submit" variant="primary">
+              Save
+            </s-button>
+            <s-button type="reset" variant="secondary">
+              Reset
+            </s-button>
+          </s-inline-stack>
+        </s-stack>
+      </s-form>
+    </s-admin-block>
   );
 }
+
+// The export default at the top of the file handles registration
