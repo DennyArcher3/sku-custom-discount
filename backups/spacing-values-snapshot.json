@@ -1,0 +1,103 @@
+{
+  "timestamp": "2025-07-29T13:42:09",
+  "file": "DiscountFunctionSettingsNew.jsx",
+  "description": "Snapshot of spacing values before migration",
+  "spacingValuesFound": [
+    {
+      "line": 564,
+      "property": "padding",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Compact Header section"
+    },
+    {
+      "line": 591,
+      "property": "gap",
+      "currentValue": "tight", 
+      "plannedValue": "small-200",
+      "context": "Validation Errors stack"
+    },
+    {
+      "line": 600,
+      "property": "padding",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Action Buttons section"
+    },
+    {
+      "line": 658,
+      "property": "padding",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Clear All Confirmation box"
+    },
+    {
+      "line": 659,
+      "property": "gap",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Clear All Confirmation stack"
+    },
+    {
+      "line": 663,
+      "property": "gap",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Clear All buttons"
+    },
+    {
+      "line": 686,
+      "property": "padding",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Bulk Import section"
+    },
+    {
+      "line": 713,
+      "property": "padding-block-start",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Bulk Import buttons"
+    },
+    {
+      "line": 748,
+      "property": "padding",
+      "currentValue": "small-400",
+      "plannedValue": "small",
+      "context": "Table Header"
+    },
+    {
+      "line": 773,
+      "property": "margin-block-end",
+      "currentValue": "extra-tight",
+      "plannedValue": "small-300",
+      "context": "Table Row spacing"
+    },
+    {
+      "line": 776,
+      "property": "gap",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Table Row grid"
+    },
+    {
+      "line": 864,
+      "property": "padding",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Save Status section"
+    },
+    {
+      "line": 865,
+      "property": "gap",
+      "currentValue": "tight",
+      "plannedValue": "small-200",
+      "context": "Save Status stack"
+    }
+  ],
+  "summary": {
+    "totalChanges": 13,
+    "uniqueOldValues": ["tight", "extra-tight", "small-400"],
+    "uniqueNewValues": ["small-200", "small-300", "small"]
+  }
+}

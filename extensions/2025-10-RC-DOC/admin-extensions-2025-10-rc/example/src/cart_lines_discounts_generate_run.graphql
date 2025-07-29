@@ -1,0 +1,33 @@
+query Input {
+  cart {
+    lines {
+      id
+      quantity
+      cost {
+        subtotalAmount {
+          amount
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          sku
+          product {
+            id
+            title
+          }
+        }
+      }
+    }
+  }
+  discount {
+    discountClasses
+    metafield(
+      namespace: "$app:sku-custom-discount"
+      key: "function-configuration"
+    ) {
+      jsonValue
+    }
+  }
+}

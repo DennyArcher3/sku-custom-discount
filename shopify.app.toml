@@ -3,11 +3,11 @@
 client_id = "3122acfb32ed2de15a381bde53864f1f"
 name = "Sku Custom Discount"
 handle = "sku-custom-discount"
-application_url = "https://exposure-ht-track-soil.trycloudflare.com"
+application_url = "https://within-sandwich-basename-states.trycloudflare.com"
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = false
+automatically_update_urls_on_dev = true
 include_config_on_deploy = true
 
 [webhooks]
@@ -30,7 +30,7 @@ api_version = "2025-10"
 scopes = "read_cart_transforms,read_discounts,read_products,write_discounts,read_metaobjects,write_metaobjects"
 
 [auth]
-redirect_urls = ["https://exposure-ht-track-soil.trycloudflare.com/auth/callback", "https://exposure-ht-track-soil.trycloudflare.com/auth/shopify/callback", "https://exposure-ht-track-soil.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://within-sandwich-basename-states.trycloudflare.com/auth/callback", "https://within-sandwich-basename-states.trycloudflare.com/auth/shopify/callback", "https://within-sandwich-basename-states.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

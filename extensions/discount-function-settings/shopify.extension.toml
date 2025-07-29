@@ -1,4 +1,4 @@
-api_version = "2025-04"
+api_version = "2025-10"
 
 [[extensions]]
 # Change the merchant-facing name of the extension in locales/en.default.json
@@ -10,6 +10,6 @@ type = "ui_extension"
 
 # Only 1 target can be specified for each Admin block extension
 [[extensions.targeting]]
-module = "./src/DiscountFunctionSettings.jsx"
-# The target used here must match the target used in the module file (./src/DiscountFunctionSettings.jsx)
+module = "./src/DiscountFunctionSettingsNew.jsx"
+# The target used here must match the target used in the module file
 target = "admin.discount-details.function-settings.render"

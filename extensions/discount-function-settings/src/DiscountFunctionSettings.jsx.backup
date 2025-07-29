@@ -1,6 +1,7 @@
 import '@shopify/ui-extensions/preact';
 import { render } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
+import './polaris-web-components.d.ts';
 
 const METAFIELD_NAMESPACE = "$app:sku-custom-discount";
 const METAFIELD_KEY = "function-configuration";
@@ -521,7 +522,6 @@ function App() {
   async function saveMetafieldChanges(event) {
     if (event) {
       event.preventDefault();
-      event.stopPropagation();
     }
     
     try {
@@ -575,7 +575,8 @@ function App() {
       }
       
       setInitialProducts(products);
-      // Success - Shopify shows its own save notification
+      setValidationErrors(['Configuration saved successfully']);
+      setTimeout(() => setValidationErrors([]), 3000);
     } catch (error) {
       console.error("Error saving metafield:", error);
       
@@ -592,11 +593,7 @@ function App() {
     }
   }
 
-  const resetForm = (event) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+  const resetForm = () => {
     setProducts(initialProducts);
     setBulkImportText("");
     setShowBulkImport(false);
@@ -625,342 +622,347 @@ function App() {
 
   return (
     <s-box padding="base">
-      <s-stack direction="block" gap="large">
-        
-        {/* Platform error banner */}
-        {hasShopifyPlatformError && (
-          <s-banner tone="critical">
-            <s-stack direction="block" gap="base">
-              <s-text variant="headingMd">Known Shopify Platform Issue</s-text>
-              <s-text>Due to a Shopify bug with discount metafields, the configuration cannot be saved directly.</s-text>
-              <s-text variant="headingSm">Workaround:</s-text>
-              <s-stack direction="block" gap="small-100">
-                <s-text>1. Save this discount without any products</s-text>
-                <s-text>2. After saving, edit the discount again</s-text>
-                <s-text>3. Add your products and save (it usually works on the second attempt)</s-text>
-              </s-stack>
-            </s-stack>
-          </s-banner>
-        )}
-        
-        {/* Header Card */}
-        <s-card>
-          <s-box padding="large">
-            <s-stack direction="inline" gap="base" inline-alignment="space-between" block-alignment="center">
-              <s-stack direction="block" gap="small-100">
-                <s-text variant="headingLg">Product SKU Discount Manager</s-text>
-                {totalProducts > 0 && (
-                  <s-badge tone="success">{totalProducts} products configured</s-badge>
-                )}
-              </s-stack>
-              {validationErrors.length > 0 && !hasShopifyPlatformError && (
-                <s-stack direction="inline" gap="small-100">
-                  {validationErrors.map((error) => {
-                    let tone = "info";
-                    if (error.includes("not found")) tone = "warning";
-                    else if (error.includes("Failed")) tone = "critical";
-                    else if (error.includes("successfully")) tone = "success";
-                    
-                    return <s-badge tone={tone}>{error}</s-badge>;
-                  })}
+      <s-form onsubmit={saveMetafieldChanges} onreset={resetForm}>
+        <s-stack direction="block" gap="large">
+          
+          {/* Platform error banner */}
+          {hasShopifyPlatformError && (
+            <s-banner tone="critical">
+              <s-stack direction="block" gap="base">
+                <s-text variant="headingMd">Known Shopify Platform Issue</s-text>
+                <s-text>Due to a Shopify bug with discount metafields, the configuration cannot be saved directly.</s-text>
+                <s-text variant="headingSm">Workaround:</s-text>
+                <s-stack direction="block" gap="small-100">
+                  <s-text>1. Save this discount without any products</s-text>
+                  <s-text>2. After saving, edit the discount again</s-text>
+                  <s-text>3. Add your products and save (it usually works on the second attempt)</s-text>
                 </s-stack>
-              )}
-            </s-stack>
-          </s-box>
-        </s-card>
-
-        {/* Actions Card */}
-        <s-card>
-          <s-box padding="large">
-            <s-stack direction="inline" gap="base" inline-alignment="space-between" block-alignment="center">
-              <s-stack direction="inline" gap="base">
-                <s-button onclick={handleProductPicker} variant="primary" icon="ProductsMajor">
-                  Select Products
-                </s-button>
-                <s-button onclick={() => setShowBulkImport(!showBulkImport)} variant="secondary" icon="ImportMinor">
-                  Bulk Import
-                </s-button>
               </s-stack>
-              
-              <s-stack direction="inline" gap="base" block-alignment="center">
-                <s-text variant="bodyMd" tone="subdued">Default:</s-text>
-                <s-button-group variant="segmented">
-                  <s-button
-                    variant={globalDiscountType === 'percentage' ? 'primary' : 'secondary'}
-                    onclick={() => setGlobalDiscountType('percentage')}
-                  >
-                    % off
-                  </s-button>
-                  <s-button
-                    variant={globalDiscountType === 'fixedAmount' ? 'primary' : 'secondary'}
-                    onclick={() => setGlobalDiscountType('fixedAmount')}
-                  >
-                    $ off
-                  </s-button>
-                </s-button-group>
-              </s-stack>
-            </s-stack>
-          </s-box>
-        </s-card>
-
-        {/* Bulk Import Section */}
-        {showBulkImport && (
+            </s-banner>
+          )}
+          
+          {/* Header Card */}
           <s-card>
             <s-box padding="large">
-              <s-stack direction="block" gap="base">
-                <s-text variant="headingSm">Bulk Import Products</s-text>
-                <s-text variant="bodyMd" tone="subdued">
-                  Copy from Excel: First column SKU, second column discount value ({globalDiscountType === 'percentage' ? 'percentage' : 'dollar amount'})
-                </s-text>
-                <s-text-field
-                  label=""
-                  value={bulkImportText}
-                  onchange={(e) => setBulkImportText(e.target.value)}
-                  multiline={6}
-                  placeholder={
-                    globalDiscountType === 'percentage'
-                      ? `SKU123	35
-SKU456	40
-SKU789	50
+              <s-stack direction="inline" gap="base" inline-alignment="space-between" block-alignment="center">
+                <s-stack direction="block" gap="small-100">
+                  <s-text variant="headingLg">Product SKU Discount Manager</s-text>
+                  {totalProducts > 0 && (
+                    <s-badge tone="success">{totalProducts} products configured</s-badge>
+                  )}
+                </s-stack>
+                {validationErrors.length > 0 && !hasShopifyPlatformError && (
+                  <s-stack direction="inline" gap="small-100">
+                    {validationErrors.map((error) => {
+                      let tone = "info";
+                      if (error.includes("not found")) tone = "warning";
+                      else if (error.includes("Failed")) tone = "critical";
+                      else if (error.includes("successfully")) tone = "success";
+                      
+                      return <s-badge tone={tone}>{error}</s-badge>;
+                    })}
+                  </s-stack>
+                )}
+              </s-stack>
+            </s-box>
+          </s-card>
 
-Note: Excel copy uses tab separator automatically. 
-You can also use comma: SKU123,35`
-                      : `SKU123	10.00
-SKU456	15.50
-SKU789	5.00
-
-Note: Excel copy uses tab separator automatically. 
-You can also use comma: SKU123,10.00`
-                  }
-                />
+          {/* Actions Card */}
+          <s-card>
+            <s-box padding="large">
+              <s-stack direction="inline" gap="base" inline-alignment="space-between" block-alignment="center">
                 <s-stack direction="inline" gap="base">
-                  <s-button
-                    variant="primary"
-                    onclick={processBulkImport}
-                    disabled={!bulkImportText.trim()}
-                  >
-                    Import
+                  <s-button onclick={handleProductPicker} variant="primary" icon="ProductsMajor">
+                    Select Products
                   </s-button>
-                  <s-button
-                    variant="plain"
-                    onclick={() => {
-                      setShowBulkImport(false);
-                      setValidationErrors([]);
-                    }}
-                  >
-                    Cancel
+                  <s-button onclick={() => setShowBulkImport(!showBulkImport)} variant="secondary" icon="ImportMinor">
+                    Bulk Import
                   </s-button>
+                </s-stack>
+                
+                <s-stack direction="inline" gap="base" block-alignment="center">
+                  <s-text variant="bodyMd" tone="subdued">Default:</s-text>
+                  <s-stack gap="small-100">
+                    <s-button
+                      variant={globalDiscountType === 'percentage' ? 'primary' : 'secondary'}
+                      onclick={() => setGlobalDiscountType('percentage')}
+                    >
+                      % off
+                    </s-button>
+                    <s-button
+                      variant={globalDiscountType === 'fixedAmount' ? 'primary' : 'secondary'}
+                      onclick={() => setGlobalDiscountType('fixedAmount')}
+                    >
+                      $ off
+                    </s-button>
+                  </s-stack>
                 </s-stack>
               </s-stack>
             </s-box>
           </s-card>
-        )}
 
-        {/* Product List Card */}
-        <s-card>
-          <s-box padding="large">
-            <s-stack direction="block" gap="base">
-              <s-stack direction="inline" inline-alignment="space-between" block-alignment="center">
-                <s-text variant="headingSm">Product List</s-text>
-                {totalProducts > 0 && (
-                  <s-button 
-                    onclick={clearAll} 
-                    variant="plain"
-                    tone="critical"
-                    icon="DeleteMinor"
-                  >
-                    Clear All
-                  </s-button>
-                )}
-              </s-stack>
-              
-              {productEntries.length === 0 ? (
-                <s-box padding="extra-large" background="subdued" border-radius="base">
-                  <s-stack direction="block" gap="base" block-alignment="center" inline-alignment="center">
-                    <s-icon source="ProductsMajor" size="large" tone="subdued" />
-                    <s-text tone="subdued">No products added yet. Use "Select Products" or "Bulk Import" to add products.</s-text>
+          {/* Bulk Import Section */}
+          {showBulkImport && (
+            <s-card>
+              <s-box padding="large">
+                <s-stack direction="block" gap="base">
+                  <s-text variant="headingSm">Bulk Import Products</s-text>
+                  <s-text variant="bodyMd" tone="subdued">
+                    Copy from Excel: First column SKU, second column discount value ({globalDiscountType === 'percentage' ? 'percentage' : 'dollar amount'})
+                  </s-text>
+                  <s-text-field
+                    label=""
+                    value={bulkImportText}
+                    onchange={(e) => setBulkImportText(e.target.value)}
+                    multiline={6}
+                    placeholder={
+                      globalDiscountType === 'percentage'
+                        ? `SKU123\t35
+SKU456\t40
+SKU789\t50
+
+Note: Excel copy uses tab separator automatically. 
+You can also use comma: SKU123,35`
+                        : `SKU123\t10.00
+SKU456\t15.50
+SKU789\t5.00
+
+Note: Excel copy uses tab separator automatically. 
+You can also use comma: SKU123,10.00`
+                    }
+                  />
+                  <s-stack direction="inline" gap="base">
+                    <s-button
+                      variant="primary"
+                      onclick={processBulkImport}
+                      disabled={!bulkImportText.trim()}
+                    >
+                      Import
+                    </s-button>
+                    <s-button
+                      variant="plain"
+                      onclick={() => {
+                        setShowBulkImport(false);
+                        setValidationErrors([]);
+                      }}
+                    >
+                      Cancel
+                    </s-button>
                   </s-stack>
-                </s-box>
-              ) : (
-                <s-box overflow="auto">
-                  <s-box min-inline-size="800">
-                    <s-stack direction="block" gap="none">
-                      {/* Table Header */}
-                      <s-box 
-                        padding="base" 
-                        background="subdued"
-                        border="divider"
-                        border-width="1"
-                      >
-                        <s-stack direction="inline" gap="base" block-alignment="center">
-                          <s-box min-inline-size="80" max-inline-size="80">
-                            <s-text variant="bodySm" font-weight="semibold">Image</s-text>
-                          </s-box>
-                          <s-box min-inline-size="200" max-inline-size="200">
-                            <s-text variant="bodySm" font-weight="semibold">Product / SKU</s-text>
-                          </s-box>
-                          <s-box min-inline-size="100" max-inline-size="100">
-                            <s-text variant="bodySm" font-weight="semibold">Price</s-text>
-                          </s-box>
-                          <s-box min-inline-size="120" max-inline-size="120">
-                            <s-text variant="bodySm" font-weight="semibold">Type</s-text>
-                          </s-box>
-                          <s-box min-inline-size="120" max-inline-size="120">
-                            <s-text variant="bodySm" font-weight="semibold">Discount</s-text>
-                          </s-box>
-                          <s-box min-inline-size="120" max-inline-size="120">
-                            <s-text variant="bodySm" font-weight="semibold">Amount</s-text>
-                          </s-box>
-                          <s-box min-inline-size="60" max-inline-size="60">
-                            <s-text variant="bodySm" font-weight="semibold">Action</s-text>
-                          </s-box>
-                        </s-stack>
-                      </s-box>
-                      
-                      {/* Product Rows */}
-                      <s-box border="divider" border-width="1" border-block-start="none">
-                        {productEntries.map(([key, product], index) => (
-                          <s-box
-                            padding="base"
-                            border-block-end={index < productEntries.length - 1 ? "divider" : "none"}
-                            background={index % 2 === 0 ? "transparent" : "subdued"}
-                          >
-                            <s-stack direction="inline" gap="base" block-alignment="center">
-                              {/* Product Image */}
-                              <s-box min-inline-size="80" max-inline-size="80">
-                                <s-thumbnail 
-                                  size="medium"
-                                  source={product.image || ''}
-                                  alt={product.title}
-                                />
-                              </s-box>
-                              
-                              {/* Product Info */}
-                              <s-box min-inline-size="200" max-inline-size="200">
-                                <s-stack direction="block" gap="extra-tight">
-                                  <s-text variant="bodyMd" font-weight="semibold">
-                                    {(() => {
-                                      let displayTitle = product.title || '';
-                                      return displayTitle
-                                        .replace(/ - Default Title$/i, '')
-                                        .replace(/ - Default$/i, '')
-                                        .replace(/ - Title$/i, '');
-                                    })()}
-                                  </s-text>
-                                  {product.sku && (
-                                    <s-text variant="bodySm" tone="subdued">
-                                      SKU: {product.sku}
-                                    </s-text>
-                                  )}
-                                </s-stack>
-                              </s-box>
-                              
-                              {/* Price */}
-                              <s-box min-inline-size="100" max-inline-size="100">
-                                {product.price ? (
-                                  <s-badge tone="info">
-                                    ${parseFloat(product.price).toFixed(2)}
-                                  </s-badge>
-                                ) : (
-                                  <s-text variant="bodyMd" tone="subdued">—</s-text>
-                                )}
-                              </s-box>
-                              
-                              {/* Discount Type */}
-                              <s-box min-inline-size="120" max-inline-size="120">
-                                <s-select
-                                  label=""
-                                  value={product.discountType || 'percentage'}
-                                  onchange={(e) => {
-                                    setProducts(prev => ({
-                                      ...prev,
-                                      [key]: { ...prev[key], discountType: e.target.value }
-                                    }));
-                                  }}
-                                >
-                                  <option value="percentage">% off</option>
-                                  <option value="fixedAmount">$ off</option>
-                                </s-select>
-                              </s-box>
-                              
-                              {/* Discount Value */}
-                              <s-box min-inline-size="120" max-inline-size="120">
-                                <s-text-field
-                                  label=""
-                                  type="number"
-                                  value={product.value?.toString() || "0"}
-                                  onchange={(e) => updateProductValue(key, e.target.value)}
-                                  prefix={product.discountType === 'fixedAmount' ? "$" : undefined}
-                                  suffix={product.discountType === 'percentage' ? "%" : undefined}
-                                  min="0"
-                                  max={product.discountType === 'percentage' ? "100" : undefined}
-                                  step={product.discountType === 'fixedAmount' ? "0.01" : "1"}
-                                />
-                              </s-box>
-                              
-                              {/* Calculated Amount */}
-                              <s-box min-inline-size="120" max-inline-size="120">
-                                {product.price && product.value > 0 ? (
-                                  product.discountType === 'percentage' ? (
-                                    <s-badge tone="critical">
-                                      -${((parseFloat(product.price) * parseFloat(product.value)) / 100).toFixed(2)}
-                                    </s-badge>
-                                  ) : (
-                                    <s-badge tone="success">
-                                      ${Math.max(0, parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
-                                    </s-badge>
-                                  )
-                                ) : (
-                                  <s-text variant="bodyMd" tone="subdued">—</s-text>
-                                )}
-                              </s-box>
-                              
-                              {/* Remove Button */}
-                              <s-box min-inline-size="60" max-inline-size="60">
-                                <s-button
-                                  variant="plain"
-                                  tone="critical"
-                                  onclick={() => removeProduct(key)}
-                                  icon="CancelMinor"
-                                  accessibilityLabel={`Remove ${product.title}`}
-                                />
-                              </s-box>
-                            </s-stack>
-                          </s-box>
-                        ))}
-                      </s-box>
+                </s-stack>
+              </s-box>
+            </s-card>
+          )}
+
+          {/* Product List Card */}
+          <s-card>
+            <s-box padding="large">
+              <s-stack direction="block" gap="base">
+                <s-stack direction="inline" inline-alignment="space-between" block-alignment="center">
+                  <s-text variant="headingSm">Product List</s-text>
+                  {totalProducts > 0 && (
+                    <s-button 
+                      onclick={clearAll} 
+                      variant="plain"
+                      tone="critical"
+                      icon="DeleteMinor"
+                    >
+                      Clear All
+                    </s-button>
+                  )}
+                </s-stack>
+                
+                {productEntries.length === 0 ? (
+                  <s-box padding="extra-large" background="subdued" border-radius="base">
+                    <s-stack direction="block" gap="base" block-alignment="center" inline-alignment="center">
+                      <s-icon source="ProductsMajor" size="large" tone="subdued" />
+                      <s-text tone="subdued">No products added yet. Use "Select Products" or "Bulk Import" to add products.</s-text>
                     </s-stack>
                   </s-box>
-                </s-box>
-              )}
+                ) : (
+                  <s-stack direction="block" gap="none">
+                    {/* Table Header */}
+                    <s-box 
+                      padding="base" 
+                      background="subdued"
+                      border="divider"
+                      border-width="1"
+                      border-radius-end-start="base"
+                      border-radius-end-end="base"
+                    >
+                      <s-grid 
+                        columns="auto 1fr auto auto auto auto auto"
+                        column-gap="base"
+                        block-alignment="center"
+                      >
+                        <s-box min-inline-size="64">
+                          <s-text variant="bodySm" font-weight="semibold">Image</s-text>
+                        </s-box>
+                        <s-text variant="bodySm" font-weight="semibold">Product / SKU</s-text>
+                        <s-box min-inline-size="80">
+                          <s-text variant="bodySm" font-weight="semibold">Price</s-text>
+                        </s-box>
+                        <s-box min-inline-size="80">
+                          <s-text variant="bodySm" font-weight="semibold">Type</s-text>
+                        </s-box>
+                        <s-box min-inline-size="100">
+                          <s-text variant="bodySm" font-weight="semibold">Discount</s-text>
+                        </s-box>
+                        <s-box min-inline-size="80">
+                          <s-text variant="bodySm" font-weight="semibold">Amount</s-text>
+                        </s-box>
+                        <s-box min-inline-size="40"></s-box>
+                      </s-grid>
+                    </s-box>
+                    
+                    {/* Product Rows */}
+                    <s-box 
+                      border="divider" 
+                      border-width="1" 
+                      border-block-start="none"
+                      border-radius-start-start="base"
+                      border-radius-start-end="base"
+                    >
+                      {productEntries.map(([key, product], index) => (
+                        <s-box
+                          padding="base"
+                          border-block-end={index < productEntries.length - 1 ? "divider" : "none"}
+                        >
+                          <s-grid 
+                            columns="auto 1fr auto auto auto auto auto"
+                            column-gap="base"
+                            block-alignment="center"
+                          >
+                            {/* Product Image */}
+                            <s-thumbnail 
+                              size="medium"
+                              source={product.image || ''}
+                              alt={product.title}
+                            />
+                            
+                            {/* Product Info */}
+                            <s-stack direction="block" gap="extra-tight">
+                              <s-text variant="bodyMd" font-weight="semibold">
+                                {(() => {
+                                  let displayTitle = product.title || '';
+                                  return displayTitle
+                                    .replace(/ - Default Title$/i, '')
+                                    .replace(/ - Default$/i, '')
+                                    .replace(/ - Title$/i, '');
+                                })()}
+                              </s-text>
+                              {product.sku && (
+                                <s-text variant="bodySm" tone="subdued">
+                                  SKU: {product.sku}
+                                </s-text>
+                              )}
+                            </s-stack>
+                            
+                            {/* Price */}
+                            <s-box min-inline-size="80">
+                              {product.price ? (
+                                <s-badge tone="info">
+                                  ${parseFloat(product.price).toFixed(2)}
+                                </s-badge>
+                              ) : (
+                                <s-text variant="bodyMd" tone="subdued">—</s-text>
+                              )}
+                            </s-box>
+                            
+                            {/* Discount Type */}
+                            <s-box min-inline-size="80">
+                              <s-select
+                                label=""
+                                value={product.discountType || 'percentage'}
+                                onchange={(e) => {
+                                  setProducts(prev => ({
+                                    ...prev,
+                                    [key]: { ...prev[key], discountType: e.target.value }
+                                  }));
+                                }}
+                              >
+                                <option value="percentage">% off</option>
+                                <option value="fixedAmount">$ off</option>
+                              </s-select>
+                            </s-box>
+                            
+                            {/* Discount Value */}
+                            <s-box min-inline-size="100">
+                              <s-text-field
+                                label=""
+                                type="number"
+                                value={product.value?.toString() || "0"}
+                                onchange={(e) => updateProductValue(key, e.target.value)}
+                                prefix={product.discountType === 'fixedAmount' ? "$" : undefined}
+                                suffix={product.discountType === 'percentage' ? "%" : undefined}
+                                min="0"
+                                max={product.discountType === 'percentage' ? "100" : undefined}
+                                step={product.discountType === 'fixedAmount' ? "0.01" : "1"}
+                              />
+                            </s-box>
+                            
+                            {/* Calculated Amount */}
+                            <s-box min-inline-size="80">
+                              {product.price && product.value > 0 ? (
+                                product.discountType === 'percentage' ? (
+                                  <s-badge tone="critical">
+                                    -${((parseFloat(product.price) * parseFloat(product.value)) / 100).toFixed(2)}
+                                  </s-badge>
+                                ) : (
+                                  <s-badge tone="success">
+                                    ${Math.max(0, parseFloat(product.price) - parseFloat(product.value)).toFixed(2)}
+                                  </s-badge>
+                                )
+                              ) : (
+                                <s-text variant="bodyMd" tone="subdued">—</s-text>
+                              )}
+                            </s-box>
+                            
+                            {/* Remove Button */}
+                            <s-box min-inline-size="40">
+                              <s-button
+                                variant="plain"
+                                tone="critical"
+                                onclick={() => removeProduct(key)}
+                                icon="CancelMinor"
+                                accessibilityLabel={`Remove ${product.title}`}
+                              />
+                            </s-box>
+                          </s-grid>
+                        </s-box>
+                      ))}
+                    </s-box>
+                  </s-stack>
+                )}
+              </s-stack>
+            </s-box>
+          </s-card>
+
+          {/* Footer Notes */}
+          <s-box padding-inline="large">
+            <s-stack direction="block" gap="extra-tight">
+              <s-text variant="bodySm" tone="subdued">
+                Note: Discounts are applied based on SKU when available, otherwise product title.
+              </s-text>
+              <s-text variant="bodySm" tone="subdued">
+                For best experience on mobile devices, use the Shopify mobile app.
+              </s-text>
             </s-stack>
           </s-box>
-        </s-card>
-
-        {/* Footer Notes */}
-        <s-box padding-inline="large">
-          <s-stack direction="block" gap="extra-tight">
-            <s-text variant="bodySm" tone="subdued">
-              Note: Discounts are applied based on SKU when available, otherwise product title.
-            </s-text>
-            <s-text variant="bodySm" tone="subdued">
-              For best experience on mobile devices, use the Shopify mobile app.
-            </s-text>
-          </s-stack>
-        </s-box>
-        
-        {/* Form Actions */}
-        <s-box padding-inline="large" padding-block-end="large">
-          <s-stack direction="inline" gap="base">
-            <s-button onclick={saveMetafieldChanges} variant="primary">
-              Save configuration
-            </s-button>
-            <s-button onclick={resetForm} variant="secondary">
-              Reset changes
-            </s-button>
-          </s-stack>
-        </s-box>
-      </s-stack>
+          
+          {/* Form Actions */}
+          <s-box padding-inline="large" padding-block-end="large">
+            <s-stack direction="inline" gap="base">
+              <s-button type="submit" variant="primary">
+                Save configuration
+              </s-button>
+              <s-button type="reset" variant="secondary">
+                Reset changes
+              </s-button>
+            </s-stack>
+          </s-box>
+        </s-stack>
+      </s-form>
     </s-box>
   );
 }

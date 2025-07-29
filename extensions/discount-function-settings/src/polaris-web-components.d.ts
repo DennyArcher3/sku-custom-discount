@@ -20,9 +20,12 @@ declare module 'preact' {
       children?: any;
     };
     's-stack': {
-      gap?: 'small-300' | 'small-200' | 'small-100' | 'small' | 'base' | 'large' | 'large-100' | 'large-200' | 'large-300';
+      direction?: 'block' | 'inline';
+      gap?: 'none' | 'extra-tight' | 'small-300' | 'small-200' | 'small-100' | 'small' | 'base' | 'large' | 'large-100' | 'large-200' | 'large-300';
       align?: 'start' | 'center' | 'end' | 'baseline' | 'stretch';
       distribution?: 'start' | 'center' | 'end' | 'space-between' | 'space-around' | 'space-evenly';
+      'inline-alignment'?: 'start' | 'center' | 'end' | 'space-between' | 'space-around' | 'space-evenly';
+      'block-alignment'?: 'start' | 'center' | 'end' | 'baseline' | 'stretch';
       children?: any;
     };
     's-grid': {
@@ -41,7 +44,22 @@ declare module 'preact' {
       'border-radius'?: 'none' | 'small' | 'base' | 'large' | 'full';
       'min-width'?: string;
       'max-width'?: string;
+      'min-inline-size'?: string;
+      'max-inline-size'?: string;
+      'min-block-size'?: string;
+      'max-block-size'?: string;
+      'border-block-end'?: string;
+      'border-width'?: string;
+      'inline-alignment'?: 'start' | 'center' | 'end' | 'stretch';
+      'block-alignment'?: 'start' | 'center' | 'end' | 'stretch';
+      overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
       display?: 'block' | 'inline' | 'inline-block' | 'flex' | 'inline-flex' | 'grid' | 'none';
+      children?: any;
+    };
+    's-card': {
+      padding?: string;
+      subdued?: boolean;
+      sectioned?: boolean;
       children?: any;
     };
     
@@ -66,10 +84,10 @@ declare module 'preact' {
     's-text-field': {
       name?: string;
       value?: string;
-      onchange?: (event: Event) => void;
-      oninput?: (event: Event) => void;
-      onfocus?: (event: Event) => void;
-      onblur?: (event: Event) => void;
+      onchange?: (event: Event & { target: HTMLInputElement }) => void;
+      oninput?: (event: Event & { target: HTMLInputElement }) => void;
+      onfocus?: (event: Event & { target: HTMLInputElement }) => void;
+      onblur?: (event: Event & { target: HTMLInputElement }) => void;
       placeholder?: string;
       label?: string;
       error?: string;
@@ -80,6 +98,9 @@ declare module 'preact' {
       required?: boolean;
       disabled?: boolean;
       readonly?: boolean;
+      multiline?: number | boolean;
+      prefix?: string;
+      suffix?: string;
       children?: any;
     };
     's-checkbox': {
@@ -98,6 +119,9 @@ declare module 'preact' {
       type?: 'button' | 'submit' | 'reset';
       disabled?: boolean;
       loading?: boolean;
+      icon?: string;
+      iconOnly?: boolean;
+      accessibilityLabel?: string;
       children?: any;
     };
     
@@ -107,6 +131,57 @@ declare module 'preact' {
       children?: any;
     };
     's-ordered-list': {
+      children?: any;
+    };
+    's-banner': {
+      tone?: 'default' | 'success' | 'info' | 'warning' | 'critical';
+      onDismiss?: () => void;
+      children?: any;
+    };
+    's-badge': {
+      tone?: 'default' | 'success' | 'info' | 'warning' | 'critical' | 'attention' | 'new' | string;
+      progress?: 'incomplete' | 'partiallyComplete' | 'complete';
+      size?: 'small' | 'medium';
+      children?: any;
+    };
+    's-divider': {
+      borderWidth?: string;
+      children?: any;
+    };
+    's-icon': {
+      source?: string;
+      size?: 'small' | 'medium' | 'large';
+      color?: string;
+      tone?: string;
+      children?: any;
+    };
+    's-image': {
+      source?: string;
+      alt?: string;
+      width?: string;
+      height?: string;
+      children?: any;
+    };
+    's-select': {
+      name?: string;
+      value?: string;
+      onchange?: (event: Event & { target: HTMLSelectElement }) => void;
+      label?: string;
+      error?: string;
+      disabled?: boolean;
+      children?: any;
+    };
+    's-thumbnail': {
+      source?: string;
+      size?: 'extraSmall' | 'small' | 'medium' | 'large';
+      alt?: string;
+      transparent?: boolean;
+      children?: any;
+    };
+    's-button-group': {
+      variant?: 'segmented' | 'plain';
+      fullWidth?: boolean;
+      connectedTop?: boolean;
       children?: any;
     };
   }
@@ -119,6 +194,9 @@ interface ShopifyGlobal {
     metafield?: {
       value?: string;
     };
+    discount?: {
+      code?: string;
+    };
   };
   applyMetafieldChange: (options: {
     namespace: string;
@@ -130,13 +208,30 @@ interface ShopifyGlobal {
     show: (message: string, options?: { isError?: boolean }) => void;
   };
   extend: (target: string, callback: Function) => void;
+  i18n?: {
+    translate: (key: string) => string;
+  };
+  loading?: boolean;
+  resourcePicker?: (options: {
+    type: string;
+    multiple?: boolean;
+    action?: string;
+    selectionIds?: string[];
+    options?: {
+      selectMultipleVariants?: boolean;
+      showVariants?: boolean;
+    };
+  }) => Promise<any[]>;
+  query?: (query: string, options?: { variables?: any }) => Promise<any>;
 }
 
 declare global {
   var shopify: ShopifyGlobal;
   
   namespace JSX {
-    interface IntrinsicElements extends preact.JSX.IntrinsicElements {}
+    interface IntrinsicElements extends preact.JSX.IntrinsicElements {
+      [key: string]: any;
+    }
   }
 }
 
