@@ -212,6 +212,7 @@ function DiscountFunctionSettings() {
   };
 
   const handleReset = () => {
+    // Reset products to initial state
     if (initialData) {
       try {
         setProducts(JSON.parse(initialData));
@@ -221,8 +222,14 @@ function DiscountFunctionSettings() {
     } else {
       setProducts([]);
     }
+    
+    // Reset ALL UI states to initial values
+    setShowBulkImport(false);
+    setBulkImportText('');
     setValidationErrors([]);
     setSuccessMessage('');
+    setShowClearConfirm(false);
+    // Note: We keep globalDiscountType as is - it's a user preference
   };
 
 
